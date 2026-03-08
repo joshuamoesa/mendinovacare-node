@@ -3,13 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "generate": "ts-node scripts/generate.ts"
+    "generate": "ts-node scripts/generate.ts",
+    "generate:full": "npm run generate && cp app/.env.example app/.env && npm --prefix app install && npm --prefix app run db:push && npm --prefix app run dev",
+    "demo": "NODE_OPTIONS='--disable-warning=DEP0180' ts-node --esm --project demo/tsconfig.json demo/run.ts"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.3.0",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.3.1",
+    "figlet": "^1.10.0",
     "mendixplatformsdk": "^5.2.0",
-    "dotenv": "^16.3.1"
+    "open": "^8.4.2",
+    "ora": "^5.4.1"
   },
   "devDependencies": {
+    "@types/figlet": "^1.7.0",
     "@types/node": "^20.0.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.0"

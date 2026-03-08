@@ -24,16 +24,45 @@ lib/
 app/                     ← generated output (committed for dev preview)
 ```
 
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run generate` | Connect to Mendix SDK and write all generated files to `app/` (~60–120s) |
+| `npm run generate:full` | Generate + copy `.env` + `npm install` + `db:push` + `npm run dev` |
+| `npm run demo` | Polished presales demo (simulated, no credentials needed) |
+| `npm run demo -- --real` | Full real SDK run with automatic app setup and launch |
+| `npm run demo -- --fast` | Skip all delays (useful for testing the demo script) |
+
 ### How to regenerate
 
 Requires `MENDIX_PAT` and `MENDIX_USER_ID` in `.env` (project root).
 
+**Quickest path — one command does everything:**
+
+```bash
+npm run generate:full     # generate + install + db:push + start app
+```
+
+**Or step by step:**
+
 ```bash
 npm run generate          # connects to Mendix SDK (~60-120s), writes app/
-cd app && npm run dev     # http://localhost:3001
+cp app/.env.example app/.env
+cd app && npm install && npm run db:push && npm run dev   # http://localhost:3001
 ```
 
 After every `npm run generate`, re-apply the post-generation patches described below.
+
+### Demo script (`demo/run.ts`)
+
+Entry point: `demo/run.ts`. Runs with `ts-node --esm` using `demo/tsconfig.json` (ESM mode required for `@inquirer/prompts` and `figlet`).
+
+**Simulate mode** (default): hardcoded stats, realistic timing (~60s total), no credentials needed. Safe for live demos.
+
+**Real mode** (`--real`): runs `scripts/generate.ts` with live SDK output, then automatically copies `.env`, runs `npm install`, `db:push`, and starts the dev server detached (survives script exit) on port 3001. Ends with a browser open prompt and farewell message.
+
+Dependencies added for the demo: `chalk@4`, `ora@5`, `@inquirer/prompts`, `open@8`, `figlet`, `@types/figlet`.
 
 ---
 
