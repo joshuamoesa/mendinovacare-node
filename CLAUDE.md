@@ -121,7 +121,18 @@ After every `npm run generate` these should be verified (they are now auto-corre
 | File | What to check |
 |------|---------------|
 | `app/src/routes/Home_Anonymous.ts` | Route now generates `const userroleList: unknown[] = []` (no Prisma call). If it still shows `prisma.userrole.findMany()`, the generator fix wasn't applied. |
-| `app/views/Home_Anonymous.ejs` | Should have **one** `mx-image-background` div, height ~600px. If two appear, the `deduplicateHeroWidgets` fix wasn't applied. |
+| `app/views/Home_Anonymous.ejs` | Should have **one** `mx-image-background` div (no inline `height`). If two appear, the `deduplicateHeroWidgets` fix wasn't applied. After verifying, manually apply section heading and card patches — see below. |
+
+### Homepage like-for-like patches for `app/views/Home_Anonymous.ejs`
+
+After regeneration, the following manual HTML changes are needed to match the original Mendix app:
+
+1. **Remove inline height from hero** — change `height: 600px` → remove it (rely on CSS `min-height: 480px`)
+2. **Section headings as h2** — change `<p>Why choose our portal?</p>`, `<p>Our mission:...</p>`, `<p>Do you need help?</p>` → `<h2>`
+3. **Feature card titles as h3** — change `<p>24/7 Access</p>`, `<p>Safe & Trusted</p>`, `<p>Direct Contact</p>` → `<h3>`
+4. **Add `mx-card` class** to the inner `<div>` container of each feature card item and the contact form
+5. **Contact info cards** — wrap Phone and Email items in `<div class="mx-card">`, change `<p>Phone</p>` / `<p>Email</p>` → `<h4>`
+6. **Contact form** — replace the placeholder `<p>Contact us</p><button>Submit</button>` with a full form including name/email/message inputs
 
 ---
 
@@ -137,12 +148,17 @@ All CSS lives in a single `<style>` block in the layout. Key classes:
 | `.mx-col--1` | Auto-width column (Mendix weight = -1) |
 | `.mx-list` / `.mx-list-row` | Card list for entity overviews |
 | `.btn`, `.btn-rounded`, `.btn-warning` | Buttons |
+| `.mx-card` | Feature/contact cards — white background, grey border, border-radius 8px, subtle shadow |
+| `.container > div + div` | Section spacing — `padding: 3rem 0` on all non-hero sections |
 
 Hero text selectors (only fire inside `.mx-image-background`):
 ```css
 .mx-image-background .mx-col-12 > p:first-child  /* 3.5rem, navy   */
-.mx-image-background .mx-col-12 > p:nth-child(2) /* 2.5rem, orange */
+.mx-image-background .mx-col-12 > p:nth-child(2) /* 3.5rem, orange */
+.mx-image-background .mx-col-12 > p:nth-child(3) /* 16px, grey body text */
 ```
+
+Container: `max-width: 1200px; margin: 0 auto; padding: 0 2rem 24px` — hero uses `margin: 0 -2rem` to bleed full container width.
 
 ---
 
@@ -155,7 +171,7 @@ Hero text selectors (only fire inside `.mx-image-background`):
 | Orange | `#D14200` | Accents, "for you." subtitle, btn-warning |
 | Grey text | `#4A4A4C` | Body text |
 | Border | `#CBD5E1` | Cards, inputs |
-| Background | `#F1F5F9` | Page background |
+| Background | `#fff` | Page background (white) |
 
 ---
 
@@ -172,4 +188,4 @@ Background image served from: `/img/design_module$Image_collection$headerImage.p
 1. **Atlas font/heading design properties not mapped** — Text widgets inside the Mendix model can have design properties like `heading1`, `heading2` etc., but these are not yet captured in `generate.ts`. Only button and background display properties are handled.
 2. **Conditional visibility ignored** — Mendix widgets can have visibility conditions (show only when logged in, etc.). These are not parsed; all widgets render unconditionally.
 3. **CustomWidget slots** — Pluggable widgets with complex slot structures (carousels, charts, icon widgets) render as `<!-- CustomWidget -->` comments.
-4. **Section headings below hero** — "Why choose our portal?", "24/7 Access" etc. render as unstyled `<p>` tags because their Atlas design property class is not captured.
+4. **Section headings below hero** — "Why choose our portal?", "24/7 Access" etc. render as unstyled `<p>` tags because their Atlas design property class is not captured. Post-generation patch is required (see above).

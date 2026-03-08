@@ -20,7 +20,7 @@ export function generateLayout(_pages: MendixPage[], projectName: string, _deplo
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Roboto', sans-serif; background: #F1F5F9; color: #4A4A4C; font-size: 14px; padding-top: 73px; }
+    body { font-family: 'Roboto', sans-serif; background: #fff; color: #4A4A4C; font-size: 14px; padding-top: 73px; }
 
     /* Navbar */
     .mx-navbar { position: fixed; top: 0; left: 0; right: 0; height: 73px; background: #ffffff; border-bottom: 1px solid #CBD5E1; display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; z-index: 100; }
@@ -31,10 +31,10 @@ export function generateLayout(_pages: MendixPage[], projectName: string, _deplo
     .mx-nav-link--signin { color: #102E62; font-weight: 700; }
 
     /* Page */
-    .container { padding: 24px 2rem; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem 24px; }
     h1 { color: #0A1731; font-size: 56px; font-weight: 700; margin-bottom: 0.25rem; line-height: 1.1; }
-    h2 { color: #D14200; font-size: 36px; font-weight: 600; margin-bottom: 1rem; }
-    h3 { color: #0A1731; font-size: 22px; font-weight: 600; margin-bottom: 0.5rem; }
+    h2 { color: #D14200; font-size: 30px; font-weight: 600; margin-bottom: 1rem; }
+    h3 { color: #0A1731; font-size: 24px; font-weight: 600; margin-bottom: 0.5rem; }
     h4 { color: #0A1731; font-size: 16px; font-weight: 600; margin-bottom: 0.25rem; }
     .mx-subtitle { color: #4A4A4C; font-size: 0.875rem; margin-bottom: 1.5rem; }
     p { margin-bottom: 0.75rem; line-height: 1.6; }
@@ -42,7 +42,8 @@ export function generateLayout(_pages: MendixPage[], projectName: string, _deplo
     /* Atlas image background / hero */
     .mx-image-background { background-size: cover; background-position: right center; background-repeat: no-repeat; display: block; padding: 4rem 2rem; margin: 0 -2rem; min-height: 480px; background-color: #fff; }
     .mx-image-background .mx-col-12 > p:first-child { font-size: 3.5rem; font-weight: 700; line-height: 1.1; color: #0A1731; margin-bottom: 0; }
-    .mx-image-background .mx-col-12 > p:nth-child(2) { font-size: 2.5rem; font-weight: 700; color: #D14200; line-height: 1.1; margin-bottom: 1.5rem; }
+    .mx-image-background .mx-col-12 > p:nth-child(2) { font-size: 3.5rem; font-weight: 700; color: #D14200; line-height: 1.1; margin-bottom: 0.5rem; }
+    .mx-image-background .mx-col-12 > p:nth-child(3) { font-size: 16px; color: #4A4A4C; margin-top: 1.5rem; margin-bottom: 0; }
     .img-cover { background-size: cover; }
     .img-center { background-position: right center; }
 
@@ -72,6 +73,22 @@ export function generateLayout(_pages: MendixPage[], projectName: string, _deplo
     .btn-default { background: #ffffff; color: #102E62; border: 1px solid #102E62; }
     a { color: #102E62; text-decoration: none; }
     a:hover { text-decoration: underline; }
+
+    /* Feature cards */
+    .mx-card { background: #fff; border: 1px solid #CBD5E1; border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    .mx-card h3 { font-size: 18px; margin-bottom: 0.5rem; }
+    .mx-card p { font-size: 14px; color: #4A4A4C; margin-bottom: 0; }
+
+    /* Section spacing */
+    .container > div + div { padding: 3rem 0; }
+
+    /* Contact form */
+    textarea.form-control { resize: vertical; min-height: 100px; }
+
+    /* Footer */
+    .mx-footer { background: #0A1731; margin: 0 -2rem; padding: 2rem !important; }
+    .mx-footer p, .mx-footer a { color: #CBD5E1; font-size: 13px; margin-bottom: 0.25rem; }
+    .mx-footer a:hover { color: #fff; text-decoration: none; }
 
     /* 12-column layout grid */
     .mx-row { display: flex; flex-wrap: wrap; margin: 0 -0.75rem; }
