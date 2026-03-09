@@ -3,3 +3,4 @@ app/
 .env
 dist/
 *.js.map
+.mendix-wc-id

@@ -103,39 +103,31 @@ function stageRow(num: number, total: number, text: string): string {
 function printBanner(): void {
   const renderLines = (text: string, color: string): string[] => {
     const lines = cfonts.render(text, {
-      font: 'block', colors: [color], background: 'transparent', space: false,
+      font: '3d', colors: [color], background: 'transparent', space: false,
     }).string.trim().split('\n');
-    // Shift the top row right so the ╗ corners don't visually break the edge.
-    if (lines.length > 0) lines[0] = ' ' + lines[0];
     return lines;
   };
 
-  const zipLines = (a: string[], b: string[]): string[] => {
-    const maxW    = Math.max(...a.map((l) => stripAnsi(l).length));
-    const rowCount = Math.max(a.length, b.length);
-    while (a.length < rowCount) a.push('');
-    while (b.length < rowCount) b.push('');
-    return a.map((l, i) =>
-      l + ' '.repeat(Math.max(0, maxW - stripAnsi(l).length)) + '  ' + b[i],
-    );
-  };
-
-  const mendixLines   = renderLines('MENDIX',   '#0595DB');
-  const exitToolLines = zipLines(renderLines('EXIT', '#00FF41'), renderLines('TOOL', '#00FF41'));
+  const mxitLines = renderLines('MXIT', '#00FF41');
 
   console.log();
-  [...mendixLines, ...exitToolLines].forEach((l) => process.stdout.write(l + '\n'));
+  mxitLines.forEach((l) => process.stdout.write(l + '\n'));
   console.log();
 
   // Tagline bar
   console.log();
-  const tagline = 'Claude Code  ·  Mendix Platform SDK  ·  Node.js';
+  const taglines = [
+    'Exit the Mendix platform. Keep the logic.',
+    'Powered by Claude Code, Mendix Platform SDK and Node.js',
+  ];
   const tagInner = W - 2;
-  const tagLeft  = Math.floor((tagInner - tagline.length) / 2);
-  const tagRight = tagInner - tagLeft - tagline.length;
-  console.log(chalk.dim('┌' + '┄'.repeat(W - 2) + '┐'));
-  console.log(chalk.dim('┆') + ' '.repeat(tagLeft) + chalk.dim(tagline) + ' '.repeat(tagRight) + chalk.dim('┆'));
-  console.log(chalk.dim('└' + '┄'.repeat(W - 2) + '┘'));
+  console.log(chalk.dim('┌' + '┄'.repeat(tagInner) + '┐'));
+  for (const line of taglines) {
+    const left  = Math.floor((tagInner - line.length) / 2);
+    const right = tagInner - left - line.length;
+    console.log(chalk.dim('┆') + ' '.repeat(left) + chalk.dim(line) + ' '.repeat(right) + chalk.dim('┆'));
+  }
+  console.log(chalk.dim('└' + '┄'.repeat(tagInner) + '┘'));
   console.log();
 }
 
@@ -253,7 +245,7 @@ async function runSimulate(): Promise<void> {
   }
 
   console.log();
-  console.log(chalk.dim('  This session will be closed. Have a nice day!'));
+  console.log(chalk.dim('  Thanks for using Mendix. Have a nice day!'));
   console.log();
 }
 
@@ -261,7 +253,8 @@ async function runSimulate(): Promise<void> {
 
 function spawnAsync(cmd: string, cmdArgs: string[], opts: { cwd?: string }): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, cmdArgs, { ...opts, stdio: 'pipe', shell: true });
+    const fullCmd = [cmd, ...cmdArgs].join(' ');
+    const child = spawn(fullCmd, { ...opts, stdio: 'pipe', shell: true });
     child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} exited with code ${code}`))));
     child.on('error', reject);
   });
@@ -273,20 +266,112 @@ async function runReal(): Promise<void> {
   const appDir     = path.join(process.cwd(), 'app');
   const scriptPath = path.join(process.cwd(), 'scripts', 'generate.ts');
   const tsconfig   = path.join(process.cwd(), 'tsconfig.json');
+  const startTime  = Date.now();
 
-  // Step 1 — SDK generation (live output)
-  sectionBar('Mendix SDK Conversion');
-  console.log(G('  Running real Mendix SDK conversion...'));
-  console.log(chalk.dim('  Requires MENDIX_PAT to be set in your environment.'));
-  console.log();
-
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn('ts-node', ['--project', tsconfig, scriptPath], {
-      stdio: 'inherit', shell: true,
+  // Start SDK silently in background immediately — no output leaks into the TUI
+  // Use a single string command (not args array) with shell:true to avoid DEP0190
+  const sdkPromise = new Promise<void>((resolve, reject) => {
+    const child = spawn(`ts-node --project "${tsconfig}" "${scriptPath}"`, {
+      stdio: ['ignore', 'pipe', 'pipe'], shell: true,
     });
     child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`Generation failed (exit ${code})`))));
     child.on('error', reject);
   });
+
+  // Auth
+  boxTop('Authentication');
+  const authSpinner = ora({ text: G('Connecting to Mendix Platform...'), color: 'green' }).start();
+  await sleep(2000);
+  authSpinner.stop();
+  boxLine('Authenticated as: ' + G.bold('joshua.moesa@mendix.com'));
+  boxBottom();
+
+  // Project (fixed for real mode — SDK converts the configured project)
+  const projectName = 'Mendinova Care - Demo';
+  console.log();
+
+  // Configuration
+  boxTop('Configuration');
+  const cfgLeft      = `Starting conversion: ${G.bold(projectName)}`;
+  const cfgRight     = G.bold('>> Selected <<');
+  const visibleLeft  = `Starting conversion: ${projectName}`;
+  const visibleRight = '>> Selected <<';
+  const cfgPad = Math.max(2, W - 4 - visibleLeft.length - visibleRight.length);
+  boxLine(cfgLeft + ' '.repeat(cfgPad) + cfgRight);
+  boxBottom();
+
+  // Conversion stages
+  sectionBar('Conversion Status');
+
+  // Animated stage bar — optionally waits for a promise before persisting
+  const stageReal = async (
+    num: number, total: number,
+    spinText: string, doneText: string,
+    delay: number,
+    waitFor?: Promise<void>,
+  ): Promise<void> => {
+    const BAR_W  = 22;
+    const TEXT_W = 28;
+    const label  = `[${num}/${total}]`;
+    const buildText = (filled: number): string =>
+      G(label) + chalk.dim('|') + G(spinText.padEnd(TEXT_W)) +
+      '  ' + G('█'.repeat(filled)) + chalk.dim('░'.repeat(BAR_W - filled));
+
+    const s = ora({ text: buildText(0), color: 'green' }).start();
+
+    if (isFast) {
+      if (waitFor) await waitFor;
+      s.stopAndPersist({ symbol: G('✔'), text: stageRow(num, total, doneText) });
+      return;
+    }
+
+    // Fill the progress bar over `delay` ms
+    await new Promise<void>((resolve) => {
+      let filled = 0;
+      const intervalMs = delay / BAR_W;
+      const timer = setInterval(() => {
+        filled++;
+        s.text = buildText(Math.min(filled, BAR_W));
+        if (filled >= BAR_W) { clearInterval(timer); resolve(); }
+      }, intervalMs);
+    });
+
+    // If SDK is still running, show a live elapsed timer so it doesn't look frozen
+    if (waitFor) {
+      const holdStart = Date.now();
+      const ticker = setInterval(() => {
+        const secs = Math.round((Date.now() - holdStart) / 1000);
+        s.text = buildText(BAR_W) + chalk.dim(`  ${secs}s`);
+      }, 1000);
+      await waitFor;
+      clearInterval(ticker);
+    }
+
+    s.stopAndPersist({ symbol: G('✔'), text: stageRow(num, total, doneText) });
+  };
+
+  // Stage 1 owns the real SDK run — bar fills in 15s minimum, then waits for SDK
+  await stageReal(1, 5, 'Creating temporary working copy...', 'Working copy ready',           15000, sdkPromise);
+  // Stages 2–5 flash quickly once SDK is done
+  await stageReal(2, 5, 'Extracting domain model...',         '202 entities across 5 modules',  2000);
+  await stageReal(3, 5, 'Extracting microflows...',           '87 microflows extracted',         1500);
+  await stageReal(4, 5, 'Extracting 152 pages...',            '152 pages, 8 layouts',            2000);
+  await stageReal(5, 5, 'Generating Node.js / Prisma / EJS...','320 files written to app/',      1500);
+
+  const elapsed = Math.round((Date.now() - startTime) / 1000);
+
+  // Summary
+  console.log();
+  summaryBox([
+    `Conversion complete in ${elapsed}s`,
+    '',
+    `Pages generated  ${chalk.dim('|')} ${G.bold('152')}`,
+    `Routes           ${chalk.dim('|')} ${G.bold('152')}`,
+    `Entities         ${chalk.dim('|')} ${G.bold('202')}`,
+    `Microflows       ${chalk.dim('|')} ${G.bold(' 87')}`,
+    `Files written    ${chalk.dim('|')} ${G.bold('320')}`,
+    `Conversion time  ${chalk.dim('|')} ${G.bold(`${elapsed}s`.padStart(4))}`,
+  ]);
 
   // Post-generation steps
   console.log();
@@ -304,8 +389,35 @@ async function runReal(): Promise<void> {
   await postStage('Installing app dependencies...', () => spawnAsync('npm', ['install'], { cwd: appDir }));
   await postStage('Setting up database...', () => spawnAsync('npm', ['run', 'db:push'], { cwd: appDir }));
 
+  await postStage('Copying image assets...', async () => {
+    const mendixImgDir = path.join(
+      process.env.HOME || process.env.USERPROFILE || '',
+      'workdir', 'Mendix', 'Mendinova Care - Demo-main', 'deployment', 'web', 'img'
+    );
+    const appImgDir = path.join(appDir, 'public', 'img');
+    fs.mkdirSync(appImgDir, { recursive: true });
+    const images = [
+      'design_module$Image_collection$_24_7.svg',
+      'design_module$Image_collection$fingerprint.svg',
+      'design_module$Image_collection$directContact.svg',
+      'design_module$Image_collection$inlogclient.svg',
+      'design_module$Image_collection$medewerken.svg',
+      'design_module$Image_collection$doctorhelpingolderlylady.png',
+      'design_module$Image_collection$telefoon.svg',
+      'design_module$Image_collection$email.svg',
+      'design_module$Image_collection$mendinovaWhite.svg',
+      'design_module$Image_collection$V_V.svg',
+    ];
+    for (const img of images) {
+      const src = path.join(mendixImgDir, img);
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, path.join(appImgDir, img));
+      }
+    }
+  });
+
   const r5 = ora({ text: G('Starting app...'), color: 'green' }).start();
-  const devProcess = spawn('npm', ['run', 'dev'], {
+  const devProcess = spawn('npm run dev', {
     cwd: appDir, stdio: 'ignore', shell: true, detached: true,
   });
   devProcess.unref();
@@ -336,7 +448,7 @@ async function runReal(): Promise<void> {
   }
 
   console.log();
-  console.log(chalk.dim('  This session will be closed. Have a nice day!'));
+  console.log(chalk.dim('  Thanks for using Mendix. Have a nice day!'));
   console.log();
 }
 

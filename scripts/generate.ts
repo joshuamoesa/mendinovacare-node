@@ -30,6 +30,7 @@ import { generateTypes } from '../generators/typesGenerator'
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const PROJECT_ID = '97e0e05a-f870-4c10-af86-7f960fe5a0bb'
+const WC_CACHE_FILE = path.join(__dirname, '..', '.mendix-wc-id')
 const PROJECT_NAME = 'Mendinova Care'
 const DEPLOYMENT_URL = 'https://mendinovacare.apps.eu-1c.mendixcloud.com'
 const OUT_DIR = path.join(__dirname, '..', 'app')
@@ -660,10 +661,34 @@ async function main(): Promise<void> {
   setPlatformConfig({ mendixToken: pat })
   const client = new MendixPlatformClient()
 
-  console.log('[1/5] Creating temporary working copy (30–120s)...')
   const app = client.getApp(PROJECT_ID)
-  const workingCopy = await app.createTemporaryWorkingCopy('main')
-  const model = await workingCopy.openModel()
+
+  let workingCopy: any = null
+  let model: any = null
+
+  // Try to reuse a cached working copy
+  if (fs.existsSync(WC_CACHE_FILE)) {
+    const cachedId = fs.readFileSync(WC_CACHE_FILE, 'utf8').trim()
+    if (cachedId) {
+      try {
+        console.log(`[1/5] Reusing existing working copy ${cachedId.slice(0, 8)}...`)
+        workingCopy = app.getWorkingCopy(cachedId)
+        model = await workingCopy.openModel()
+        console.log('      Working copy ready (reused)')
+      } catch (_) {
+        console.log('      Cached working copy expired or unavailable — creating a new one...')
+        workingCopy = null
+      }
+    }
+  }
+
+  if (!workingCopy) {
+    console.log('[1/5] Creating temporary working copy (30–120s)...')
+    workingCopy = await app.createTemporaryWorkingCopy('main')
+    const wcId: string = workingCopy.workingCopyId || ''
+    if (wcId) fs.writeFileSync(WC_CACHE_FILE, wcId, 'utf8')
+    model = await workingCopy.openModel()
+  }
 
   console.log('[2/5] Extracting domain model...')
   const entities = await extractEntities(model)

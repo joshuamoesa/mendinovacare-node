@@ -60,19 +60,23 @@ Entry point: `demo/run.ts`. Runs with `ts-node --esm` using `demo/tsconfig.json`
 
 **Simulate mode** (default): hardcoded stats, realistic timing (~60s total), no credentials needed. Safe for live demos.
 
-**Real mode** (`--real`): runs `scripts/generate.ts` with live SDK output, then automatically copies `.env`, runs `npm install`, `db:push`, and starts the dev server detached (survives script exit) on port 3001. Ends with a browser open prompt and farewell message.
+**Real mode** (`--real`): spawns `scripts/generate.ts` silently in the background (`stdio: ['ignore', 'pipe', 'pipe']`) so raw SDK output never leaks into the TUI. Shows the same auth box → config box → 5-stage progress bar flow as simulate mode. After the SDK finishes, automatically copies `.env`, runs `npm install`, `db:push`, copies image assets, and starts the dev server detached on port 3001. Ends with a browser open prompt and farewell message.
+
+**Working copy cache**: on the first `--real` run, the Mendix temporary working copy ID is saved to `.mendix-wc-id`. Subsequent runs call `app.getWorkingCopy(id).openModel()` to reuse it, skipping the 30–120s creation step. If the cached copy has expired, a new one is created automatically and the cache is updated.
+
+**DEP0190 suppression**: all `spawn` calls use the single-string command form (e.g. `spawn('npm run dev', { shell: true })`) rather than the args-array form, which avoids the Node.js DEP0190 deprecation warning that would otherwise corrupt the TUI output.
 
 Dependencies added for the demo: `chalk@4`, `ora@5`, `@inquirer/prompts`, `open@8`, `cfonts`, `figlet` (in package.json but no longer imported).
 
 #### TUI design
 
-All layout uses a fixed width `W = 74` chars. Colour palette: phosphor green `#00FF41` for all UI chrome and text; Mendix primary blue `#0595DB` for the MENDIX banner word.
+All layout uses a fixed width `W = 74` chars. Colour palette: phosphor green `#00FF41` for all UI chrome and text.
 
 **Banner** — `printBanner()`:
-- `cfonts` `block` font renders **MENDIX** (blue) and **EXIT TOOL** (green) as separate blocks printed back-to-back with no gap.
-- EXIT and TOOL are rendered separately and zipped line-by-line to avoid the wide space the `block` font inserts between words.
-- Line 0 of each word is indented 1 space to compensate for the `╗` box-drawing character rendering slightly lower than `█` in most terminal fonts.
-- Below the banner: a dim grey dashed box (`┌┄┄┄┐ / ┆ / └┄┄┄┘`) containing the tagline `Claude Code · Mendix Platform SDK · Node.js`.
+- `cfonts` `3d` font renders **MXIT** in phosphor green as a single block.
+- Below the banner: a dim grey dashed box (`┌┄┄┄┐ / ┆ / └┄┄┄┘`) with two centred lines:
+  - `Exit the Mendix platform. Keep the logic.`
+  - `Powered by Claude Code, Mendix Platform SDK and Node.js`
 
 **Section boxes** — three variants:
 | Function | Corners | Used for |
@@ -82,6 +86,8 @@ All layout uses a fixed width `W = 74` chars. Colour palette: phosphor green `#0
 | `summaryBox(lines)` | `┌┐└┘` green, floating title | Summary stats |
 
 **Animated progress bars** — each conversion stage drives a `setInterval` that fills one `█` per tick (interval = `delay / 22 ms`). Unfilled portion shows dim `░`. On completion `ora.stopAndPersist` swaps in the full `stageRow` with all 22 `█` and `[✔]`.
+
+**Real mode stage 1 hold** — after the bar fills to 100%, if the SDK is still running the spinner keeps animating and a live elapsed counter (`23s`, `24s`…) is appended to the bar text so the user can see it is working, not frozen. Once the SDK resolves the counter stops and the stage row persists.
 
 ---
 
@@ -164,23 +170,74 @@ However, the design-property-to-CSS mapper in `generate.ts` currently only handl
 
 ## Post-generation manual patches
 
-After every `npm run generate` these should be verified (they are now auto-correct due to generator fixes, but confirm):
+After every `npm run generate` these should be verified:
 
 | File | What to check |
 |------|---------------|
-| `app/src/routes/Home_Anonymous.ts` | Route now generates `const userroleList: unknown[] = []` (no Prisma call). If it still shows `prisma.userrole.findMany()`, the generator fix wasn't applied. |
-| `app/views/Home_Anonymous.ejs` | Should have **one** `mx-image-background` div (no inline `height`). If two appear, the `deduplicateHeroWidgets` fix wasn't applied. After verifying, manually apply section heading and card patches — see below. |
+| `app/src/routes/Home_Anonymous.ts` | Route generates `const userroleList: unknown[] = []` (no Prisma call). If it still shows `prisma.userrole.findMany()`, the generator fix wasn't applied. |
+| `app/src/app.ts` | Must include `app.use(express.static(path.join(__dirname, '../public')))` before routes. Add it if missing. |
+| `app/views/Home_Anonymous.ejs` | Apply the full like-for-like patch below. |
 
-### Homepage like-for-like patches for `app/views/Home_Anonymous.ejs`
+### Image assets
 
-After regeneration, the following manual HTML changes are needed to match the original Mendix app:
+Copy these files from the Mendix deployment into `app/public/img/` after each generation:
 
-1. **Remove inline height from hero** — change `height: 600px` → remove it (rely on CSS `min-height: 480px`)
-2. **Section headings as h2** — change `<p>Why choose our portal?</p>`, `<p>Our mission:...</p>`, `<p>Do you need help?</p>` → `<h2>`
-3. **Feature card titles as h3** — change `<p>24/7 Access</p>`, `<p>Safe & Trusted</p>`, `<p>Direct Contact</p>` → `<h3>`
-4. **Add `mx-card` class** to the inner `<div>` container of each feature card item and the contact form
-5. **Contact info cards** — wrap Phone and Email items in `<div class="mx-card">`, change `<p>Phone</p>` / `<p>Email</p>` → `<h4>`
-6. **Contact form** — replace the placeholder `<p>Contact us</p><button>Submit</button>` with a full form including name/email/message inputs
+```bash
+MENDIX_IMG="/path/to/Mendix/Mendinova Care - Demo-main/deployment/web/img"
+APP_IMG="app/public/img"
+mkdir -p "$APP_IMG"
+cp "$MENDIX_IMG/design_module\$Image_collection\$_24_7.svg"               "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$fingerprint.svg"          "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$directContact.svg"        "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$inlogclient.svg"          "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$medewerken.svg"           "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$doctorhelpingolderlylady.png" "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$telefoon.svg"             "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$email.svg"                "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$mendinovaWhite.svg"       "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Image_collection\$V_V.svg"                  "$APP_IMG/"
+```
+
+Image mapping:
+| File | Used for |
+|------|----------|
+| `_24_7.svg` | 24/7 Access feature card icon |
+| `fingerprint.svg` | DigiD button icon + Safe & Trusted card icon + NEN badge in hero |
+| `directContact.svg` | Direct Contact card icon |
+| `inlogclient.svg` | Patient sign in button icon |
+| `medewerken.svg` | Employee sign in button icon |
+| `doctorhelpingolderlylady.png` | Our mission section side photo |
+| `telefoon.svg` | Phone icon in help section |
+| `email.svg` | Email icon in help section |
+| `mendinovaWhite.svg` | Footer logo (white version) |
+| `V_V.svg` | Checkmark icons in mission checklist |
+
+### Homepage like-for-like patch for `app/views/Home_Anonymous.ejs`
+
+Replace the entire generated file with the version committed in the repo. Key differences from the raw generator output:
+
+1. **Hero headings** — `<p>Care that works</p>` / `<p>for you.</p>` → `<h1>` / `<h1 class="hero-subtitle">` (orange via CSS)
+2. **Remove inline height** — `height: 420px` removed; `min-height: 480px` is in CSS
+3. **Section headings** — "Why choose our portal?", "Our mission…", "Do you need help?" → `<h2>` (orange via CSS)
+4. **Feature cards** — `<!-- CustomWidget -->` replaced with `<img>` referencing `/img/...`, titles → `<h3>`, wrapper → `<div class="mx-card">`
+5. **Mission section** — `<!-- CustomWidget -->` for the side image replaced with `<img src="/img/...doctorhelpingolderlylady.png">`, checkmarks → `<img src="/img/...V_V.svg">` in `.mx-checklist`
+6. **Contact info** — Phone/Email `<!-- CustomWidget -->` → `<img>` icons with `.mx-contact-item` layout, phone number / email address use `.mx-contact-value` (bold)
+7. **Contact form** — replaced `<p>Contact us</p><button>Submit</button>` with full `<form>` (name, email, message, full-width submit), wrapped in `.mx-card.mx-contact-form`, "Contact us" → `<h3 style="color: #D14200">`
+8. **Footer** — logo `<!-- CustomWidget -->` → `<img src="/img/...mendinovaWhite.svg">`, footer div gets `.mx-footer` class for dark background
+
+### CSS additions to `app/views/layout.ejs`
+
+These CSS rules must be present (already in the committed file):
+
+```css
+/* Hero headings */
+.mx-image-background h1 { font-size: 3.5rem; font-weight: 700; line-height: 1.1; color: #0A1731; margin-bottom: 0; }
+.mx-image-background h1.hero-subtitle { color: #D14200; margin-bottom: 0.5rem; }
+.mx-image-background p { font-size: 16px; color: #4A4A4C; margin-top: 1.5rem; margin-bottom: 0; }
+
+/* Card icons, checklist, contact items, mission image, NEN badge, btn-block */
+/* (see full layout.ejs for details) */
+```
 
 ---
 

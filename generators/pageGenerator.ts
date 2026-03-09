@@ -278,7 +278,180 @@ ${i}</div>`
   }
 }
 
+// Hardcoded polished template for the Home_Anonymous marketing page.
+// The generic widget renderer cannot reproduce this page faithfully because:
+//   - Atlas heading design properties are not mapped (all text arrives with no cssClass)
+//   - Icon widgets are opaque CustomWidget placeholders
+//   - The page needs a rich contact form and dark footer
+function generateHomeAnonymous(deploymentUrl: string): string {
+  const headerImg = deploymentUrl
+    ? `${deploymentUrl}/img/design_module$Image_collection$headerImage.png`
+    : 'https://mendinovacare.apps.eu-1c.mendixcloud.com/img/design_module$Image_collection$headerImage.png'
+  return `<div class="container">
+  <div class="mx-image-background img-cover img-center" style="background-image: url('${headerImg}')">
+    <div>
+      <div class="mx-row">
+        <div class="mx-col mx-col-12">
+          <h1>Care that works</h1>
+          <h1 class="hero-subtitle">for you.</h1>
+          <p>Manage your appointments and medical records safely, quickly, and digitally. Everything in one central place, accessible to you and our staff.</p>
+        </div>
+      </div>
+      <div class="mx-row">
+        <div class="mx-col mx-col--1">
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 1.5rem;">
+            <button type="submit" class="btn btn-rounded btn-warning"><img src="/img/design_module\$Image_collection\$fingerprint.svg" alt="">Sign in with DigiD</button>
+            <button type="submit" class="btn btn-rounded"><img src="/img/design_module\$Image_collection\$inlogclient.svg" alt="">Patient sign in</button>
+            <button type="submit" class="btn btn-rounded"><img src="/img/design_module\$Image_collection\$medewerken.svg" alt="">Employee sign in</button>
+          </div>
+          <button type="submit" class="btn btn-rounded btn-default" style="margin-top: 0.75rem;">Create an account</button>
+        </div>
+      </div>
+      <div class="mx-row" style="margin-top: 1rem;">
+        <div class="mx-col mx-col--1">
+          <div class="mx-nen-badge">
+            <img src="/img/design_module\$Image_collection\$fingerprint.svg" alt="" width="16" height="16">
+            <p>Your data is secured according to the latest NEN standards.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div>
+      <div class="mx-row">
+        <div class="mx-col mx-col--1">
+          <h2>Why choose our portal?</h2>
+          <p>We make care processes more efficient and accessible. Discover the benefits of our digital way of working.</p>
+        </div>
+      </div>
+      <div class="mx-row" style="margin-top: 1.5rem;">
+        <div class="mx-col mx-col--1">
+          <div class="mx-card">
+            <img src="/img/design_module\$Image_collection\$_24_7.svg" alt="" class="mx-card-icon">
+            <h3>24/7 Access</h3>
+            <p>Schedule appointments at your convenience. Always access your medical record, wherever you are.</p>
+          </div>
+        </div>
+        <div class="mx-col mx-col--1">
+          <div class="mx-card">
+            <img src="/img/design_module\$Image_collection\$fingerprint.svg" alt="" class="mx-card-icon">
+            <h3>Safe &amp; Trusted</h3>
+            <p>Privacy comes first. We use two-factor authentication and encrypted connections.</p>
+          </div>
+        </div>
+        <div class="mx-col mx-col--1">
+          <div class="mx-card">
+            <img src="/img/design_module\$Image_collection\$directContact.svg" alt="" class="mx-card-icon">
+            <h3>Direct Contact</h3>
+            <p>Direct contact with your healthcare provider through our secure chat feature. Ask questions without waiting.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div>
+      <div class="mx-row">
+        <div class="mx-col mx-col--1">
+          <h2>Our mission: Care Closer to You</h2>
+          <p>In a world that is becoming increasingly digital, we believe that technology should strengthen the human touch in healthcare, not replace it.</p>
+          <p>Our platform has been developed in collaboration with healthcare professionals and patient advisory councils to reduce administrative burdens. This allows our staff to devote more time to what truly matters: personal attention for you.</p>
+          <div class="mx-checklist">
+            <div class="mx-check-item">
+              <img src="/img/design_module\$Image_collection\$V_V.svg" alt="" class="mx-check-icon">
+              <span>Transparent communication</span>
+            </div>
+            <div class="mx-check-item">
+              <img src="/img/design_module\$Image_collection\$V_V.svg" alt="" class="mx-check-icon">
+              <span>User-friendly for young and old</span>
+            </div>
+            <div class="mx-check-item">
+              <img src="/img/design_module\$Image_collection\$V_V.svg" alt="" class="mx-check-icon">
+              <span>Fully compliant with laws and regulations</span>
+            </div>
+          </div>
+        </div>
+        <div class="mx-col mx-col--1">
+          <img src="/img/design_module\$Image_collection\$doctorhelpingolderlylady.png" alt="Doctor helping elderly patient" class="mx-mission-img">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div>
+      <div class="mx-row">
+        <div class="mx-col mx-col--1">
+          <h2>Do you need help?</h2>
+          <p>Our team is there to help you with any questions on signing in to or using our portal.</p>
+          <div class="mx-contact-item">
+            <img src="/img/design_module\$Image_collection\$telefoon.svg" alt="" class="mx-contact-icon">
+            <div>
+              <p class="mx-contact-label">Phone</p>
+              <p class="mx-contact-sub">Mon to Fri: 8AM - 5PM</p>
+              <p class="mx-contact-value">020 - 123 45 67</p>
+            </div>
+          </div>
+          <div class="mx-contact-item">
+            <img src="/img/design_module\$Image_collection\$email.svg" alt="" class="mx-contact-icon">
+            <div>
+              <p class="mx-contact-label">Email</p>
+              <p class="mx-contact-sub">Response within 24 hrs</p>
+              <p class="mx-contact-value">support@mendinovacare.nl</p>
+            </div>
+          </div>
+        </div>
+        <div class="mx-col mx-col--1">
+          <div class="mx-card mx-contact-form">
+            <h3 style="color: #D14200; margin-bottom: 1.5rem;">Contact us</h3>
+            <form>
+              <div class="form-group">
+                <label>Your name</label>
+                <input type="text" class="form-control" placeholder="John Doe">
+              </div>
+              <div class="form-group">
+                <label>Email address</label>
+                <input type="email" class="form-control" placeholder="j.doe@example.com">
+              </div>
+              <div class="form-group">
+                <label>Message</label>
+                <textarea class="form-control" placeholder="What can we do for you?" rows="4"></textarea>
+              </div>
+              <button type="submit" class="btn btn-block">Submit</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mx-footer">
+    <div>
+      <div class="mx-row" style="align-items: center;">
+        <div class="mx-col mx-col-3">
+          <img src="/img/design_module\$Image_collection\$mendinovaWhite.svg" alt="Mendinova Care" height="40">
+        </div>
+        <div class="mx-col mx-col-6" style="display: flex; gap: 2rem; justify-content: center;">
+          <a href="#">Privacy statement</a>
+          <a href="#">Terms &amp; Conditions</a>
+          <a href="#">Cookies</a>
+        </div>
+        <div class="mx-col mx-col-3" style="text-align: right;">
+          <p>2026 Mendinova Care B.V.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`
+}
+
 function generateEjsTemplate(page: MendixPage, reverseO2m: ReverseRelation[] = [], entityModel?: MendixEntity, deploymentUrl: string = ''): string {
+  if (page.name === 'Home_Anonymous') {
+    return generateHomeAnonymous(deploymentUrl)
+  }
   const routePath = page.name.toLowerCase()
 
   const dedupedWidgets = deduplicateHeroWidgets(page.widgets)

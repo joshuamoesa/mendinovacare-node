@@ -64,7 +64,7 @@ Runs a polished retro terminal UI demo — simulated by default, no credentials 
 npm run demo
 ```
 
-The demo opens with a **MENDIX / EXIT TOOL** banner in large block letters (Mendix blue + phosphor green), followed by animated progress bars that fill left-to-right as each conversion stage runs, and a summary box with the final stats.
+The demo opens with an **MXIT** banner in large 3D letters (phosphor green), followed by animated progress bars that fill left-to-right as each conversion stage runs, and a summary box with the final stats.
 
 To run the real Mendix SDK conversion and automatically set up and launch the generated app:
 
@@ -73,6 +73,8 @@ npm run demo -- --real
 ```
 
 This connects to the Mendix Platform SDK, generates all files into `app/`, installs dependencies, sets up the SQLite database, and starts the app at `http://localhost:3001`.
+
+On the first run a temporary working copy is created on the Mendix platform (~30–120s). The working copy ID is cached in `.mendix-wc-id` so subsequent runs reuse it and skip straight to model extraction. If the cached working copy has expired, a new one is created automatically.
 
 Available flags:
 

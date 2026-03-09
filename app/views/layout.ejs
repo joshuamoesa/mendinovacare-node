@@ -30,11 +30,40 @@
 
     /* Atlas image background / hero */
     .mx-image-background { background-size: cover; background-position: right center; background-repeat: no-repeat; display: block; padding: 4rem 2rem; margin: 0 -2rem; min-height: 480px; background-color: #fff; }
-    .mx-image-background .mx-col-12 > p:first-child { font-size: 3.5rem; font-weight: 700; line-height: 1.1; color: #0A1731; margin-bottom: 0; }
-    .mx-image-background .mx-col-12 > p:nth-child(2) { font-size: 3.5rem; font-weight: 700; color: #D14200; line-height: 1.1; margin-bottom: 0.5rem; }
-    .mx-image-background .mx-col-12 > p:nth-child(3) { font-size: 16px; color: #4A4A4C; margin-top: 1.5rem; margin-bottom: 0; }
+    .mx-image-background h1 { font-size: 3.5rem; font-weight: 700; line-height: 1.1; color: #0A1731; margin-bottom: 0; }
+    .mx-image-background h1.hero-subtitle { color: #D14200; margin-bottom: 0.5rem; }
+    .mx-image-background p { font-size: 16px; color: #4A4A4C; margin-top: 1.5rem; margin-bottom: 0; }
     .img-cover { background-size: cover; }
     .img-center { background-position: right center; }
+
+    /* Card icons */
+    .mx-card-icon { width: 40px; height: 40px; margin-bottom: 1rem; display: block; }
+
+    /* Checkmark list */
+    .mx-checklist { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+    .mx-check-item { display: flex; align-items: center; gap: 0.75rem; }
+    .mx-check-icon { width: 24px; height: 24px; flex-shrink: 0; }
+
+    /* Mission image */
+    .mx-mission-img { width: 100%; border-radius: 12px; object-fit: cover; max-height: 400px; }
+
+    /* Contact items */
+    .mx-contact-item { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
+    .mx-contact-icon { width: 40px; height: 40px; flex-shrink: 0; }
+    .mx-contact-label { font-weight: 600; color: #0A1731; margin-bottom: 0.1rem; }
+    .mx-contact-sub { font-size: 13px; color: #4A4A4C; margin-bottom: 0.1rem; }
+    .mx-contact-value { font-weight: 700; color: #0A1731; margin-bottom: 0; }
+
+    /* Contact form card */
+    .mx-contact-form { padding: 2rem; }
+
+    /* Full-width button */
+    .btn-block { width: 100%; padding: 0.75rem; text-align: center; }
+
+    /* NEN security badge */
+    .mx-nen-badge { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+    .mx-nen-badge img { width: 16px; height: 16px; }
+    .mx-nen-badge p { margin: 0; font-size: 13px; color: #4A4A4C; margin-top: 0; }
 
     /* Card list */
     .mx-list { display: flex; flex-direction: column; gap: 8px; }
@@ -60,6 +89,8 @@
     .btn-warning { background: #D14200; }
     .btn-warning:hover { background: #a33400; }
     .btn-default { background: #ffffff; color: #102E62; border: 1px solid #102E62; }
+    .btn img { height: 16px; width: auto; vertical-align: middle; margin-right: 0.35rem; filter: brightness(0) invert(1); }
+    .btn-default img { filter: brightness(0) saturate(100%) invert(13%) sepia(53%) saturate(1000%) hue-rotate(196deg) brightness(90%) contrast(95%); }
     a { color: #102E62; text-decoration: none; }
     a:hover { text-decoration: underline; }
 
