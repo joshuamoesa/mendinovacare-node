@@ -58,11 +58,13 @@ MENDIX_USER_ID=your_user_id
 
 ### Presales demo (recommended)
 
-Runs a polished terminal demo — simulated by default, no credentials required:
+Runs a polished retro terminal UI demo — simulated by default, no credentials required:
 
 ```bash
 npm run demo
 ```
+
+The demo opens with a **MENDIX / EXIT TOOL** banner in large block letters (Mendix blue + phosphor green), followed by animated progress bars that fill left-to-right as each conversion stage runs, and a summary box with the final stats.
 
 To run the real Mendix SDK conversion and automatically set up and launch the generated app:
 

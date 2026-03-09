@@ -56,13 +56,32 @@ After every `npm run generate`, re-apply the post-generation patches described b
 
 ### Demo script (`demo/run.ts`)
 
-Entry point: `demo/run.ts`. Runs with `ts-node --esm` using `demo/tsconfig.json` (ESM mode required for `@inquirer/prompts` and `figlet`).
+Entry point: `demo/run.ts`. Runs with `ts-node --esm` using `demo/tsconfig.json` (ESM mode required for `@inquirer/prompts` and `cfonts`).
 
 **Simulate mode** (default): hardcoded stats, realistic timing (~60s total), no credentials needed. Safe for live demos.
 
 **Real mode** (`--real`): runs `scripts/generate.ts` with live SDK output, then automatically copies `.env`, runs `npm install`, `db:push`, and starts the dev server detached (survives script exit) on port 3001. Ends with a browser open prompt and farewell message.
 
-Dependencies added for the demo: `chalk@4`, `ora@5`, `@inquirer/prompts`, `open@8`, `figlet`, `@types/figlet`.
+Dependencies added for the demo: `chalk@4`, `ora@5`, `@inquirer/prompts`, `open@8`, `cfonts`, `figlet` (in package.json but no longer imported).
+
+#### TUI design
+
+All layout uses a fixed width `W = 74` chars. Colour palette: phosphor green `#00FF41` for all UI chrome and text; Mendix primary blue `#0595DB` for the MENDIX banner word.
+
+**Banner** — `printBanner()`:
+- `cfonts` `block` font renders **MENDIX** (blue) and **EXIT TOOL** (green) as separate blocks printed back-to-back with no gap.
+- EXIT and TOOL are rendered separately and zipped line-by-line to avoid the wide space the `block` font inserts between words.
+- Line 0 of each word is indented 1 space to compensate for the `╗` box-drawing character rendering slightly lower than `█` in most terminal fonts.
+- Below the banner: a dim grey dashed box (`┌┄┄┄┐ / ┆ / └┄┄┄┘`) containing the tagline `Claude Code · Mendix Platform SDK · Node.js`.
+
+**Section boxes** — three variants:
+| Function | Corners | Used for |
+|----------|---------|----------|
+| `boxTop(title)` + `boxBottom()` | `┌┐└┘` green | Authentication, Configuration |
+| `sectionBar(title?)` | plain `─` green (no corners) | Conversion Status, DONE dividers |
+| `summaryBox(lines)` | `┌┐└┘` green, floating title | Summary stats |
+
+**Animated progress bars** — each conversion stage drives a `setInterval` that fills one `█` per tick (interval = `delay / 22 ms`). Unfilled portion shows dim `░`. On completion `ora.stopAndPersist` swaps in the full `stageRow` with all 22 `█` and `[✔]`.
 
 ---
 
