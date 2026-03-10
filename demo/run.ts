@@ -204,7 +204,7 @@ async function runSimulate(): Promise<void> {
   };
 
   await stage(1, 5, 'Creating temporary working copy...', 'Working copy ready',           15000);
-  await stage(2, 5, 'Extracting domain model...',         '202 entities across 5 modules', 10000);
+  await stage(2, 5, 'Extracting domain model...',         '202 entities, 5 modules', 10000);
   await stage(3, 5, 'Extracting microflows...',           '87 microflows extracted',        8000);
   await stage(4, 5, 'Extracting 152 pages...',            '152 pages, 8 layouts',          15000);
   await stage(5, 5, 'Generating Node.js / Prisma / EJS...','320 files written to app/',    5000);
@@ -217,9 +217,9 @@ async function runSimulate(): Promise<void> {
     `Pages generated  ${chalk.dim('|')} ${G.bold('152')}`,
     `Routes           ${chalk.dim('|')} ${G.bold('152')}`,
     `Entities         ${chalk.dim('|')} ${G.bold('202')}`,
-    `Microflows       ${chalk.dim('|')} ${G.bold(' 87')}`,
+    `Microflows       ${chalk.dim('|')} ${G.bold('87')}`,
     `Files written    ${chalk.dim('|')} ${G.bold('320')}`,
-    `Conversion time  ${chalk.dim('|')} ${G.bold(' 58s')}`,
+    `Conversion time  ${chalk.dim('|')} ${G.bold('58s')}`,
   ]);
 
   // Done
@@ -245,7 +245,8 @@ async function runSimulate(): Promise<void> {
   }
 
   console.log();
-  console.log(chalk.dim('  Thanks for using Mendix. Have a nice day!'));
+  console.log(chalk.dim('  Best of luck with your migration! Thanks for being part of the Mendix community.'));
+  console.log(chalk.dim('  If you ever get the itch to come back, we\'ll have a fresh pot of coffee waiting for you.'));
   console.log();
 }
 
@@ -353,7 +354,7 @@ async function runReal(): Promise<void> {
   // Stage 1 owns the real SDK run — bar fills in 15s minimum, then waits for SDK
   await stageReal(1, 5, 'Creating temporary working copy...', 'Working copy ready',           15000, sdkPromise);
   // Stages 2–5 flash quickly once SDK is done
-  await stageReal(2, 5, 'Extracting domain model...',         '202 entities across 5 modules',  2000);
+  await stageReal(2, 5, 'Extracting domain model...',         '202 entities, 5 modules',  2000);
   await stageReal(3, 5, 'Extracting microflows...',           '87 microflows extracted',         1500);
   await stageReal(4, 5, 'Extracting 152 pages...',            '152 pages, 8 layouts',            2000);
   await stageReal(5, 5, 'Generating Node.js / Prisma / EJS...','320 files written to app/',      1500);
@@ -368,9 +369,9 @@ async function runReal(): Promise<void> {
     `Pages generated  ${chalk.dim('|')} ${G.bold('152')}`,
     `Routes           ${chalk.dim('|')} ${G.bold('152')}`,
     `Entities         ${chalk.dim('|')} ${G.bold('202')}`,
-    `Microflows       ${chalk.dim('|')} ${G.bold(' 87')}`,
+    `Microflows       ${chalk.dim('|')} ${G.bold('87')}`,
     `Files written    ${chalk.dim('|')} ${G.bold('320')}`,
-    `Conversion time  ${chalk.dim('|')} ${G.bold(`${elapsed}s`.padStart(4))}`,
+    `Conversion time  ${chalk.dim('|')} ${G.bold(`${elapsed}s`)}`,
   ]);
 
   // Post-generation steps
@@ -448,7 +449,8 @@ async function runReal(): Promise<void> {
   }
 
   console.log();
-  console.log(chalk.dim('  Thanks for using Mendix. Have a nice day!'));
+  console.log(chalk.dim('  Best of luck with your migration! Thanks for being part of the Mendix community.'));
+  console.log(chalk.dim('  If you ever get the itch to come back, we\'ll have a fresh pot of coffee waiting for you.'));
   console.log();
 }
 

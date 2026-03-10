@@ -60,7 +60,7 @@ Entry point: `demo/run.ts`. Runs with `ts-node --esm` using `demo/tsconfig.json`
 
 **Simulate mode** (default): hardcoded stats, realistic timing (~60s total), no credentials needed. Safe for live demos.
 
-**Real mode** (`--real`): spawns `scripts/generate.ts` silently in the background (`stdio: ['ignore', 'pipe', 'pipe']`) so raw SDK output never leaks into the TUI. Shows the same auth box → config box → 5-stage progress bar flow as simulate mode. After the SDK finishes, automatically copies `.env`, runs `npm install`, `db:push`, copies image assets, and starts the dev server detached on port 3001. Ends with a browser open prompt and farewell message.
+**Real mode** (`--real`): spawns `scripts/generate.ts` silently in the background (`stdio: ['ignore', 'pipe', 'pipe']`) so raw SDK output never leaks into the TUI. Shows the same auth box → config box → 5-stage progress bar flow as simulate mode. After the SDK finishes, automatically copies `.env`, runs `npm install`, `db:push`, copies image assets, and starts the dev server detached on port 3001. Ends with a browser open prompt and a two-line farewell message.
 
 **Working copy cache**: on the first `--real` run, the Mendix temporary working copy ID is saved to `.mendix-wc-id`. Subsequent runs call `app.getWorkingCopy(id).openModel()` to reuse it, skipping the 30–120s creation step. If the cached copy has expired, a new one is created automatically and the cache is updated.
 
@@ -88,6 +88,16 @@ All layout uses a fixed width `W = 74` chars. Colour palette: phosphor green `#0
 **Animated progress bars** — each conversion stage drives a `setInterval` that fills one `█` per tick (interval = `delay / 22 ms`). Unfilled portion shows dim `░`. On completion `ora.stopAndPersist` swaps in the full `stageRow` with all 22 `█` and `[✔]`.
 
 **Real mode stage 1 hold** — after the bar fills to 100%, if the SDK is still running the spinner keeps animating and a live elapsed counter (`23s`, `24s`…) is appended to the bar text so the user can see it is working, not frozen. Once the SDK resolves the counter stops and the stage row persists.
+
+**Summary box alignment** — all values after `|` are left-aligned with no leading spaces (e.g. `87` not `' 87'`, `58s` not `' 58s'`). This keeps the first digit of every value at the same column. Do not add `padStart` to values in `summaryBox` calls.
+
+**Stage done text width** — `TEXT_W = 28` in both `stageRow` and `buildText`. Done text strings must be ≤28 chars or the progress bar shifts right. Current done texts and their lengths: `Working copy ready` (18), `202 entities, 5 modules` (23), `87 microflows extracted` (23), `152 pages, 8 layouts` (20), `320 files written to app/` (25).
+
+**Farewell message** — two `chalk.dim` lines printed after the browser open prompt:
+```
+Best of luck with your migration! Thanks for being part of the Mendix community.
+If you ever get the itch to come back, we'll have a fresh pot of coffee waiting for you.
+```
 
 ---
 
