@@ -133,6 +133,33 @@ Microflow extraction is capped at 200 to limit SDK round-trips. Items in `genera
 
 Not yet extracted: nanoflows, snippets, published REST services, scheduled events.
 
+## How microflow wiring works (and where it stops)
+
+### Current approach
+
+The generator extracts every microflow as a standalone service file in `src/services/`. Microflows are **not** automatically connected to routes. The only exception is a hardcoded special-case in `generateHomeAnonymousRoute()` which:
+
+1. Imports `VAL_ContactFormEntry_Submit` — a validation microflow whose `ValidationFeedbackAction` nodes are parsed to produce real field-validation logic
+2. Calls it in the `POST /contact` handler before the Prisma insert, returning per-field errors on failure
+
+Action microflows (`ACT_` prefix) such as `ACT_ContactFormEntry_Submit` are generated as stubs. They appear in `src/services/` and document what the Mendix microflow does, but are never imported by any route. The orchestration they represent (validate → create → show message) is instead handled directly by the Express route handler.
+
+This tradeoff is intentional: the app is fixed to one Mendix project, so hardcoding the one flow that needs to work is simpler and more reliable than deriving it from the model.
+
+### What a real general-purpose generator would need
+
+To automatically wire any Mendix app's button actions to working routes, the generator would need to implement:
+
+| Capability | What it requires |
+|---|---|
+| **Button → microflow lookup** | Read each page's button widgets, follow `microflowName` to the correct microflow |
+| **Control flow graph** | Parse the microflow's node connections (not just the flat node list) to emit `if/else` blocks in the right order |
+| **Expression translation** | Convert Mendix OQL / microflow expressions to TypeScript — currently only basic cases are handled in `lib/expressionTranslator.ts` |
+| **Call graph traversal** | When a microflow calls another (`MicroflowCallAction`), resolve and inline or import the callee |
+| **Client-side coordination** | `ShowMessageAction` and `ShowPageAction` require the route to return instructions the browser can act on (modal, redirect) |
+
+The actions that map cleanly today: `CreateObjectAction`, `RetrieveAction`, `DeleteAction`, and `ValidationFeedbackAction`. These cover the common CRUD + validation pattern and are sufficient for most data-entry forms.
+
 ## Configuration
 
 `generator.config.js` in the project root controls extraction behaviour. Edit it before running `npm run generate`.

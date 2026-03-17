@@ -271,6 +271,14 @@ for (const enumObj of domainModel.enumerations || []) {
 ```
 `model.allEnumerations()` also works once the registry is warmed up. The short name (`enumObj.name`) matches the `enumerationName` stored on `MendixAttribute`. `prismaGenerator.ts` emits proper `enum` blocks (only for enumerations referenced by at least one entity attribute); `typesGenerator.ts` emits TypeScript union types.
 
+### Microflow wiring — current approach and general-purpose gap
+
+The generator writes one service file per microflow (`src/services/*.ts`) but does **not** automatically connect any of them to routes. The only live wiring is the hardcoded special-case in `generateHomeAnonymousRoute()` which imports and calls `VAL_ContactFormEntry_Submit`.
+
+Action microflows (`ACT_` prefix) are generated as stubs — they document the Mendix logic but are never imported by any route. The orchestration they represent (validate → create → show message) is re-implemented directly in the Express route handler.
+
+**Why not wire automatically?** The generator currently processes microflow nodes as a flat sequential list, not as a control-flow graph. The node connections (`outgoingFlows`) are extracted but unused in code generation. Without graph traversal, `if/else` branches can't be emitted in the correct order. A general-purpose generator would also need: button-to-microflow lookup on each page, expression translation for split conditions, call graph traversal for `MicroflowCallAction`, and client-side coordination for `ShowMessageAction` / `ShowPageAction`. The actions that already map cleanly are `CreateObjectAction`, `RetrieveAction`, `DeleteAction`, and `ValidationFeedbackAction` — sufficient for CRUD + validation forms.
+
 ### ValidationFeedbackAction extraction
 
 `ValidationFeedbackAction` nodes sit inside `ActionActivity` wrappers like all other action nodes. After unwrapping, the attribute name is at `actionObj.attribute.qualifiedName` (take the part after the last `.`). The error message lives at:
