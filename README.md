@@ -68,7 +68,11 @@ Runs a polished retro terminal UI demo — simulated by default, no credentials 
 npm run demo
 ```
 
-The demo opens with a **POP** banner in large 3D letters (phosphor green), followed by animated progress bars that fill left-to-right as each conversion stage runs, and a summary box with the final stats.
+The demo opens with a **POP** banner in large 3D letters (phosphor green), then prompts for a project and output type, followed by animated progress bars that fill left-to-right as each conversion stage runs, and a summary box with the final stats.
+
+**Project selection** — three options: `HR Self Service Portal`, `Customer Ticket Manager`, `Mendinova Care - Demo`.
+
+**Output type** — five options: `Go`, `Java`, `Node.js`, `Python`, `.NET`. The conversion always produces a Node.js app; the other options are placeholders for demo purposes.
 
 To run the real Mendix SDK conversion and automatically set up and launch the generated app:
 

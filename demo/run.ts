@@ -167,9 +167,22 @@ async function runSimulate(): Promise<void> {
   const projectName = await select({
     message: 'Select a Mendix project to convert',
     choices: [
-      { name: 'Mendinova Care - Demo',    value: 'Mendinova Care - Demo' },
       { name: 'HR Self Service Portal',   value: 'HR Self Service Portal' },
       { name: 'Customer Ticket Manager',  value: 'Customer Ticket Manager' },
+      { name: 'Mendinova Care - Demo',    value: 'Mendinova Care - Demo' },
+    ],
+  });
+  console.log();
+
+  // Output type
+  await select({
+    message: 'Select output type',
+    choices: [
+      { name: 'Go',      value: 'go' },
+      { name: 'Java',    value: 'java' },
+      { name: 'Node.js', value: 'nodejs' },
+      { name: 'Python',  value: 'python' },
+      { name: '.NET',    value: 'dotnet' },
     ],
   });
   console.log();
@@ -308,6 +321,19 @@ async function runReal(): Promise<void> {
 
   // Project (fixed for real mode — SDK converts the configured project)
   const projectName = 'Mendinova Care - Demo';
+  console.log();
+
+  // Output type
+  await select({
+    message: 'Select output type',
+    choices: [
+      { name: 'Go',      value: 'go' },
+      { name: 'Java',    value: 'java' },
+      { name: 'Node.js', value: 'nodejs' },
+      { name: 'Python',  value: 'python' },
+      { name: '.NET',    value: 'dotnet' },
+    ],
+  });
   console.log();
 
   // Configuration

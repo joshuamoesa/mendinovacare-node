@@ -69,7 +69,11 @@ Entry point: `demo/run.ts`. Runs with `ts-node --esm` using `demo/tsconfig.json`
 
 **Simulate mode** (default): hardcoded stats, realistic timing (~60s total), no credentials needed. Safe for live demos.
 
-**Real mode** (`--real`): spawns `scripts/generate.ts` silently in the background (`stdio: ['ignore', 'pipe', 'pipe']`) so raw SDK output never leaks into the TUI. Shows the same auth box → config box → 5-stage progress bar flow as simulate mode. After the SDK finishes, automatically copies `.env`, runs `npm install`, `db:push`, copies image assets, and starts the dev server detached on port 3001. Ends with a browser open prompt and a two-line farewell message.
+**Real mode** (`--real`): spawns `scripts/generate.ts` silently in the background (`stdio: ['ignore', 'pipe', 'pipe']`) so raw SDK output never leaks into the TUI. Shows the same auth box → project/output selection → config box → 5-stage progress bar flow as simulate mode. After the SDK finishes, automatically copies `.env`, runs `npm install`, `db:push`, copies image assets, and starts the dev server detached on port 3001. Ends with a browser open prompt and a two-line farewell message.
+
+**Interactive prompts** — two `@inquirer/prompts` `select` calls run before the Configuration box:
+1. **Project selection** — three choices in order: `HR Self Service Portal`, `Customer Ticket Manager`, `Mendinova Care - Demo`. The selected name is shown in the Configuration box. In real mode the project is fixed to `Mendinova Care - Demo` (the SDK only converts the configured project ID) but the prompt still appears.
+2. **Output type** — five choices: `Go`, `Java`, `Node.js`, `Python`, `.NET`. All are dummy values except `Node.js`; the conversion always produces a Node.js app regardless of selection.
 
 **Working copy cache**: on the first `--real` run, the Mendix temporary working copy ID is saved to `.mendix-wc-id`. Subsequent runs call `app.getWorkingCopy(id).openModel()` to reuse it, skipping the 30–120s creation step. If the cached copy has expired, a new one is created automatically and the cache is updated.
 
