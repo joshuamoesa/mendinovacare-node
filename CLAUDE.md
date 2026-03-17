@@ -4,6 +4,24 @@ Project memory for Claude Code. Updated after every working session.
 
 ---
 
+## IMPORTANT: Always change the generator, never the generated files
+
+Before every `npm run demo -- --real` run, the entire `app/` directory is deleted and regenerated from scratch. **Any change made directly to files inside `app/` will be lost.**
+
+If something in the generated app needs fixing — a route, a view, a service, CSS — always find the corresponding generator function and fix it there:
+
+| What needs changing | Where to fix it |
+|---------------------|-----------------|
+| `app/views/layout.ejs` | `generators/layoutGenerator.ts` |
+| `app/views/*.ejs` | `generators/pageGenerator.ts` — `generateHomeAnonymous()` or `generateEjsTemplate()` |
+| `app/src/routes/*.ts` | `generators/pageGenerator.ts` — `generateHomeAnonymousRoute()` or `generateRouteFile()` |
+| `app/src/services/*.ts` | `generators/microflowGenerator.ts` |
+| `app/src/app.ts`, `app/src/db.ts` | `generators/appGenerator.ts` |
+| `app/prisma/schema.prisma` | `generators/prismaGenerator.ts` |
+| `app/package.json` | `generators/packageJsonGenerator.ts` |
+
+---
+
 ## What this project is
 
 A code generator that reads the **Mendinova Care** Mendix app model via the Mendix Platform SDK and outputs a runnable Node.js / Express / Prisma / EJS application into `app/`.
@@ -71,8 +89,8 @@ Entry point: `demo/run.ts`. Runs with `ts-node --esm` using `demo/tsconfig.json`
 
 **Real mode** (`--real`): spawns `scripts/generate.ts` silently in the background (`stdio: ['ignore', 'pipe', 'pipe']`) so raw SDK output never leaks into the TUI. Shows the same auth box → project/output selection → config box → 5-stage progress bar flow as simulate mode. After the SDK finishes, automatically copies `.env`, runs `npm install`, `db:push`, copies image assets, and starts the dev server detached on port 3001. Ends with a browser open prompt and a two-line farewell message.
 
-**Interactive prompts** — two `@inquirer/prompts` `select` calls run before the Configuration box:
-1. **Project selection** — three choices in order: `HR Self Service Portal`, `Customer Ticket Manager`, `Mendinova Care - Demo`. The selected name is shown in the Configuration box. In real mode the project is fixed to `Mendinova Care - Demo` (the SDK only converts the configured project ID) but the prompt still appears.
+**Interactive prompts** — two `@inquirer/prompts` `select` calls run before the Configuration box in both simulate and real mode:
+1. **Project selection** — three choices in order: `HR Self Service Portal`, `Customer Ticket Manager`, `Mendinova Care - Demo`. The selected name is shown in the Configuration box. In real mode the SDK always converts the configured project ID regardless of selection.
 2. **Output type** — five choices: `Go`, `Java`, `Node.js`, `Python`, `.NET`. All are dummy values except `Node.js`; the conversion always produces a Node.js app regardless of selection.
 
 **Working copy cache**: on the first `--real` run, the Mendix temporary working copy ID is saved to `.mendix-wc-id`. Subsequent runs call `app.getWorkingCopy(id).openModel()` to reuse it, skipping the 30–120s creation step. If the cached copy has expired, a new one is created automatically and the cache is updated.
@@ -253,6 +271,19 @@ for (const enumObj of domainModel.enumerations || []) {
 ```
 `model.allEnumerations()` also works once the registry is warmed up. The short name (`enumObj.name`) matches the `enumerationName` stored on `MendixAttribute`. `prismaGenerator.ts` emits proper `enum` blocks (only for enumerations referenced by at least one entity attribute); `typesGenerator.ts` emits TypeScript union types.
 
+### ValidationFeedbackAction extraction
+
+`ValidationFeedbackAction` nodes sit inside `ActionActivity` wrappers like all other action nodes. After unwrapping, the attribute name is at `actionObj.attribute.qualifiedName` (take the part after the last `.`). The error message lives at:
+```
+actionObj.feedbackTemplate  (ClientTemplate)
+  → .text                    (texts.Text, requires .load())
+    → .translations[i]
+      → .text                (string)
+```
+The SDK sometimes returns no parameters for validation microflows. `generateValidationFunction()` handles this by always emitting at least one `input: any` parameter using the fallback `mf.parameters[0]?.name || 'input'`, so the body's `input.Field` references are always valid.
+
+`ExclusiveMerge` nodes are control-flow join points — they emit nothing. `ChangeVariableAction` nodes are skipped in the validation path (the boolean flag is replaced by the `errors` object).
+
 ### Prisma enum support on SQLite
 Prisma maps enum types to `TEXT` columns on SQLite — native enums are not required. Prisma `enum` blocks in `schema.prisma` work with SQLite without any special configuration.
 
@@ -264,9 +295,11 @@ After every `npm run generate` these should be verified:
 
 | File | What to check |
 |------|---------------|
-| `app/src/routes/Home_Anonymous.ts` | Must contain `GET /home_anonymous` and `POST /contact` only — no `prisma.userrole` calls. The `generateHomeAnonymousRoute()` special-case in `pageGenerator.ts` handles this automatically. |
+| `app/src/routes/Home_Anonymous.ts` | Must contain `GET /home_anonymous` and `POST /contact` with `VAL_ContactFormEntry_Submit` validation. `generateHomeAnonymousRoute()` in `pageGenerator.ts` handles this automatically. |
+| `app/src/services/VAL_ContactFormEntry_Submit.ts` | Must have a parameter (`input: any`) and return `{ valid, errors }`. `generateValidationFunction()` in `microflowGenerator.ts` handles this; the SDK sometimes returns no parameters so the fallback `input: any` is emitted. |
 | `app/src/app.ts` | Must include `app.use(express.static(path.join(__dirname, '../public')))` before routes. Add it if missing. |
-| `app/views/Home_Anonymous.ejs` | The generator's `generateHomeAnonymous()` produces the full polished template including the contact form, confirmation modal, and fetch script. Verify the committed version matches if the generator was changed. |
+| `app/views/Home_Anonymous.ejs` | Contact form inputs have no `required` attributes; each has a `<span class="form-error">` below it; fetch script populates those spans from `data.errors`. All generated by `generateHomeAnonymous()`. |
+| `app/package.json` | `dev` script must use `nodemon`. `packageJsonGenerator.ts` now generates this automatically. |
 
 ### Image assets
 
@@ -312,7 +345,7 @@ Replace the entire generated file with the version committed in the repo. Key di
 4. **Feature cards** — `<!-- CustomWidget -->` replaced with `<img>` referencing `/img/...`, titles → `<h3>`, wrapper → `<div class="mx-card">`
 5. **Mission section** — `<!-- CustomWidget -->` for the side image replaced with `<img src="/img/...doctorhelpingolderlylady.png">`, checkmarks → `<img src="/img/...V_V.svg">` in `.mx-checklist`
 6. **Contact info** — Phone/Email `<!-- CustomWidget -->` → `<img>` icons with `.mx-contact-item` layout, phone number / email address use `.mx-contact-value` (bold)
-7. **Contact form** — full `<form id="contactForm">` with `name="Name"`, `name="Email"`, `name="Message"` inputs, wrapped in `.mx-card.mx-contact-form`. On submit: JS intercepts, POSTs JSON to `POST /contact`, resets form, shows confirmation modal. Modal text matches the Mendix `ShowMessageAction`: *"Thank you for contacting us! We will get back to you as soon as possible."*
+7. **Contact form** — full `<form id="contactForm">` with `name="Name"`, `name="Email"`, `name="Message"` inputs (no `required` attributes), each followed by a `<span class="form-error">` for server-side error display. On submit: JS POSTs JSON to `POST /contact`; on `res.ok` resets form and shows confirmation modal; on 400 populates the error spans with per-field messages from `data.errors`. The route calls `VAL_ContactFormEntry_Submit` before the Prisma insert and returns `{ success: false, errors: { ... } }` with HTTP 400 on validation failure.
 8. **Footer** — logo `<!-- CustomWidget -->` → `<img src="/img/...mendinovaWhite.svg">`, footer div gets `.mx-footer` class for dark background
 
 ### CSS additions to `app/views/layout.ejs`

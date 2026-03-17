@@ -115,6 +115,7 @@ export function generateLayout(_pages: MendixPage[], projectName: string, _deplo
 
     /* Contact form */
     textarea.form-control { resize: vertical; min-height: 100px; }
+    .form-error { display: block; color: #c0392b; font-size: 0.8rem; margin-top: 0.25rem; min-height: 1rem; }
 
     /* Footer */
     .mx-footer { background: #0A1731; margin: 0 -2rem; padding: 2rem !important; }

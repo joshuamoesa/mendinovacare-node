@@ -9,7 +9,7 @@ export function generatePackageJson(projectName: string): GeneratedFile {
     scripts: {
       build: 'tsc',
       start: 'node dist/app.js',
-      dev: 'ts-node src/app.ts',
+      dev: 'nodemon --watch src --ext ts --exec ts-node src/app.ts',
       'db:generate': 'prisma generate',
       'db:push': 'prisma db push',
       'db:migrate': 'prisma migrate dev'
@@ -25,6 +25,7 @@ export function generatePackageJson(projectName: string): GeneratedFile {
     devDependencies: {
       typescript: '^5.0.0',
       'ts-node': '^10.9.1',
+      nodemon: '^3.0.0',
       prisma: '^6.0.0',
       '@types/express': '^4.17.17',
       '@types/ejs': '^3.1.2',

@@ -126,7 +126,7 @@ The generator reads the live Mendix model and produces the following:
 |----------------|-------------------|
 | **Entities** | `prisma/schema.prisma` models with typed fields, FK columns, and auto-increment IDs |
 | **Enumerations** | Prisma `enum` blocks in the schema + TypeScript union types in `src/types.ts` |
-| **Microflows** | `src/services/*.ts` stubs with comments mapping each action (CreateObject, ChangeObject, ShowMessage, etc.) |
+| **Microflows** | `src/services/*.ts` — validation microflows (`VAL_` prefix or containing `ValidationFeedbackAction` nodes) generate a real synchronous `{ valid, errors }` function; all others generate async stubs with comments mapping each action |
 | **Pages** | `views/*.ejs` templates + `src/routes/*.ts` Express routers (one pair per page) |
 
 Microflow extraction is capped at 200 to limit SDK round-trips. Items in `generator.config.js` `priority.microflows` are always included regardless of their position in the full list.

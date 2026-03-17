@@ -55,7 +55,10 @@ export type MicroflowNodeKind =
   | 'LogMessageAction'
   | 'ShowMessageAction'
   | 'ExclusiveSplit'
+  | 'ExclusiveMerge'
   | 'LoopedActivity'
+  | 'ValidationFeedbackAction'
+  | 'ChangeVariableAction'
   | 'Other'
 
 export interface MicroflowNode {
@@ -68,6 +71,8 @@ export interface MicroflowNode {
   message?: string
   messageTemplate?: string   // ShowMessageAction popup text
   messageType?: string       // ShowMessageAction: 'Information' | 'Warning' | 'Error'
+  feedbackAttribute?: string // ValidationFeedbackAction: attribute name being validated
+  feedbackMessage?: string   // ValidationFeedbackAction: error message text
   outgoingFlows: string[]   // IDs of connected nodes
 }
 

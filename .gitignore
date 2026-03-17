@@ -6,3 +6,4 @@ dist/
 .mendix-wc-id
 .DS_Store
 Mendinova Care - Demo-main alias
+.playwright-mcp/

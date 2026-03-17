@@ -410,15 +410,18 @@ function generateHomeAnonymous(deploymentUrl: string): string {
             <form id="contactForm">
               <div class="form-group">
                 <label>Your name</label>
-                <input type="text" name="Name" class="form-control" placeholder="John Doe" required>
+                <input type="text" name="Name" class="form-control" placeholder="John Doe">
+                <span class="form-error" id="error-Name"></span>
               </div>
               <div class="form-group">
                 <label>Email address</label>
-                <input type="email" name="Email" class="form-control" placeholder="j.doe@example.com" required>
+                <input type="email" name="Email" class="form-control" placeholder="j.doe@example.com">
+                <span class="form-error" id="error-Email"></span>
               </div>
               <div class="form-group">
                 <label>Message</label>
-                <textarea name="Message" class="form-control" placeholder="What can we do for you?" rows="4" required></textarea>
+                <textarea name="Message" class="form-control" placeholder="What can we do for you?" rows="4"></textarea>
+                <span class="form-error" id="error-Message"></span>
               </div>
               <button type="submit" class="btn btn-block">Submit</button>
             </form>
@@ -441,10 +444,17 @@ function generateHomeAnonymous(deploymentUrl: string): string {
       const form = e.target
       const body = { Name: form.Name.value, Email: form.Email.value, Message: form.Message.value }
       try {
+        ;['Name', 'Email', 'Message'].forEach(function(f) { document.getElementById('error-' + f).textContent = '' })
         const res = await fetch('/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        const data = await res.json()
         if (res.ok) {
           form.reset()
           document.getElementById('contactModal').style.display = 'flex'
+        } else if (data.errors) {
+          Object.keys(data.errors).forEach(function(field) {
+            var el = document.getElementById('error-' + field)
+            if (el) el.textContent = data.errors[field]
+          })
         } else {
           console.error('Contact form submission failed', res.status)
         }
@@ -738,6 +748,7 @@ function generateHomeAnonymousRoute(): string {
 // Route for page: Home_Anonymous
 import { Router, Request, Response } from 'express'
 import { prisma } from '../db'
+import { VAL_ContactFormEntry_Submit } from '../services/VAL_ContactFormEntry_Submit'
 
 const router = Router()
 
@@ -749,10 +760,14 @@ router.get('/home_anonymous', async (req: Request, res: Response) => {
 
 // POST /contact - handle contact form submission
 router.post('/contact', async (req: Request, res: Response) => {
+  const { Name, Email, Message } = req.body
+  const validation = VAL_ContactFormEntry_Submit({ Name: Name ?? '', Email: Email ?? '', Message: Message ?? '' })
+  if (!validation.valid) {
+    return res.status(400).json({ success: false, errors: validation.errors })
+  }
   try {
-    const { Name, Email, Message } = req.body
     await prisma.contactFormEntry.create({
-      data: { Name, Email, Message, SubmittedOn: new Date().toISOString() }
+      data: { Name: Name.trim(), Email: Email.trim(), Message: Message.trim(), SubmittedOn: new Date().toISOString() }
     })
     res.json({ success: true })
   } catch (err) {

@@ -319,8 +319,15 @@ async function runReal(): Promise<void> {
   boxLine('Authenticated as: ' + G.bold('joshua.moesa@mendix.com'));
   boxBottom();
 
-  // Project (fixed for real mode — SDK converts the configured project)
-  const projectName = 'Mendinova Care - Demo';
+  // Project selection
+  const projectName = await select({
+    message: 'Select a Mendix project to convert',
+    choices: [
+      { name: 'HR Self Service Portal',   value: 'HR Self Service Portal' },
+      { name: 'Customer Ticket Manager',  value: 'Customer Ticket Manager' },
+      { name: 'Mendinova Care - Demo',    value: 'Mendinova Care - Demo' },
+    ],
+  });
   console.log();
 
   // Output type

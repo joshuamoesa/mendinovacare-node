@@ -81,7 +81,10 @@ function mapMicroflowNodeKind(typeName: string): MicroflowNodeKind {
     LogMessageAction: 'LogMessageAction',
     ShowMessageAction: 'ShowMessageAction',
     ExclusiveSplit: 'ExclusiveSplit',
+    ExclusiveMerge: 'ExclusiveMerge',
     LoopedActivity: 'LoopedActivity',
+    ValidationFeedbackAction: 'ValidationFeedbackAction',
+    ChangeVariableAction: 'ChangeVariableAction',
   }
   return kindMap[typeName] || 'Other'
 }
@@ -314,6 +317,30 @@ async function extractMicroflows(model: any): Promise<MendixMicroflow[]> {
               if (kind === 'ExclusiveSplit' || kind === 'EndEvent') {
                 try {
                   node.expression = obj.splitCondition?.expression || obj.returnValue?.expression || ''
+                } catch (_) { /* skip */ }
+              }
+
+              if (kind === 'ValidationFeedbackAction') {
+                try {
+                  const attr = actionObj.attribute
+                  if (attr) {
+                    node.feedbackAttribute = attr.qualifiedName?.split('.')?.pop() || attr.name || ''
+                  }
+                  const tmpl = actionObj.feedbackTemplate
+                  if (tmpl) {
+                    await tmpl.load()
+                    const txt = tmpl.text
+                    if (txt) {
+                      await txt.load()
+                      const translations = txt.translations || []
+                      for (const trans of translations) {
+                        try {
+                          await trans.load()
+                          if (trans.text) { node.feedbackMessage = trans.text; break }
+                        } catch (_) { /* skip */ }
+                      }
+                    }
+                  }
                 } catch (_) { /* skip */ }
               }
 
