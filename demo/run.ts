@@ -108,16 +108,16 @@ function printBanner(): void {
     return lines;
   };
 
-  const mxitLines = renderLines('MXIT', '#00FF41');
+  const popLines = renderLines('POP', '#00FF41');
 
   console.log();
-  mxitLines.forEach((l) => process.stdout.write(l + '\n'));
+  popLines.forEach((l) => process.stdout.write(l + '\n'));
   console.log();
 
   // Tagline bar
   console.log();
   const taglines = [
-    'Exit the Mendix platform. Keep the logic.',
+    'Proof of Portability. Your logic. Any platform.',
     'Powered by Claude Code, Mendix Platform SDK and Node.js',
   ];
   const tagInner = W - 2;
@@ -128,6 +128,25 @@ function printBanner(): void {
     console.log(chalk.dim('┆') + ' '.repeat(left) + chalk.dim(line) + ' '.repeat(right) + chalk.dim('┆'));
   }
   console.log(chalk.dim('└' + '┄'.repeat(tagInner) + '┘'));
+  console.log();
+
+  // Disclaimer box
+  const Y = chalk.yellow;
+  const disclaimerTitle = ' INTERNAL USE ONLY ';
+  const dInner = W - 2;
+  const dLeft  = Math.floor((dInner - disclaimerTitle.length) / 2);
+  const dRight = dInner - dLeft - disclaimerTitle.length;
+  console.log(Y('┌') + Y('─'.repeat(dLeft)) + Y.bold(disclaimerTitle) + Y('─'.repeat(dRight)) + Y('┐'));
+  const disclaimerLines = [
+    '  POP is a proof-of-concept built for internal demos only.',
+    '  It is not a product, not for sale, and must not be presented',
+    '  to customers as a Mendix offering or service.',
+  ];
+  for (const line of disclaimerLines) {
+    const pad = Math.max(0, dInner - 2 - line.length);
+    console.log(Y('│') + ' ' + chalk.yellow(line) + ' '.repeat(pad) + ' ' + Y('│'));
+  }
+  console.log(Y('└') + Y('─'.repeat(dInner)) + Y('┘'));
   console.log();
 }
 

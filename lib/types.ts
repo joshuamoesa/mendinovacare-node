@@ -53,6 +53,7 @@ export type MicroflowNodeKind =
   | 'DeleteAction'
   | 'MicroflowCallAction'
   | 'LogMessageAction'
+  | 'ShowMessageAction'
   | 'ExclusiveSplit'
   | 'LoopedActivity'
   | 'Other'
@@ -65,6 +66,8 @@ export interface MicroflowNode {
   targetMicroflow?: string
   expression?: string
   message?: string
+  messageTemplate?: string   // ShowMessageAction popup text
+  messageType?: string       // ShowMessageAction: 'Information' | 'Warning' | 'Error'
   outgoingFlows: string[]   // IDs of connected nodes
 }
 
@@ -115,16 +118,25 @@ export interface MendixPage {
   widgets: MendixWidget[]
 }
 
+export interface MendixEnumeration {
+  name: string
+  moduleName: string
+  qualifiedName: string
+  values: string[]
+}
+
 // Full extracted model
 export interface MendixAppModel {
   projectId: string
   projectName: string
   entities: MendixEntity[]
+  enumerations: MendixEnumeration[]
   microflows: MendixMicroflow[]
   pages: MendixPage[]
   stats: {
     moduleCount: number
     entityCount: number
+    enumerationCount: number
     microflowCount: number
     pageCount: number
   }

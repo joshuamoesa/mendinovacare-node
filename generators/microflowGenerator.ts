@@ -21,6 +21,9 @@ function generateNodeStatement(node: MicroflowNode, indent: string): string {
     case 'LogMessageAction':
       return `${indent}console.log(${node.message ? JSON.stringify(node.message) : '"TODO: log message"'})`
 
+    case 'ShowMessageAction':
+      return `${indent}// Show ${node.messageType || 'Information'} popup: ${node.messageTemplate ? JSON.stringify(node.messageTemplate) : '"TODO: message text"'}`
+
     case 'ExclusiveSplit': {
       const condition = node.expression ? translateExpression(node.expression) : 'true /* TODO: condition */'
       return `${indent}if (${condition}) {\n${indent}  // true branch\n${indent}} else {\n${indent}  // false branch\n${indent}}`
@@ -65,7 +68,7 @@ ${statements.join('\n')}
 }
 
 export function generateMicroflowServices(microflows: MendixMicroflow[]): GeneratedFile[] {
-  const MAX_MICROFLOWS = 50
+  const MAX_MICROFLOWS = 200
   const limited = microflows.slice(0, MAX_MICROFLOWS)
 
   if (microflows.length > MAX_MICROFLOWS) {

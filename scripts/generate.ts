@@ -7,6 +7,7 @@ import {
   MendixEntity,
   MendixAttribute,
   MendixAssociation,
+  MendixEnumeration,
   MendixMicroflow,
   MicroflowNode,
   MicroflowNodeKind,
@@ -28,6 +29,17 @@ import { generatePackageJson, generateTsConfig, generateEnvExample, generateRead
 import { generateTypes } from '../generators/typesGenerator'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
+
+const CONFIG_JS   = path.join(__dirname, '..', 'generator.config.js')
+const CONFIG_JSON = path.join(__dirname, '..', 'generator.config.json')
+const generatorConfig =
+  fs.existsSync(CONFIG_JS)   ? require(CONFIG_JS) :
+  fs.existsSync(CONFIG_JSON) ? JSON.parse(fs.readFileSync(CONFIG_JSON, 'utf8')) :
+  {}
+const SKIP_MODULES        = new Set<string>(generatorConfig.skipModules ?? ['System', 'Administration', 'Marketplace'])
+const PRIORITY_MICROFLOWS = new Set<string>(generatorConfig.priority?.microflows ?? [])
+const PRIORITY_PAGES      = new Set<string>(generatorConfig.priority?.pages ?? [])
+const PRIORITY_ENTITIES   = new Set<string>(generatorConfig.priority?.entities ?? [])
 
 const PROJECT_ID = '97e0e05a-f870-4c10-af86-7f960fe5a0bb'
 const WC_CACHE_FILE = path.join(__dirname, '..', '.mendix-wc-id')
@@ -67,6 +79,7 @@ function mapMicroflowNodeKind(typeName: string): MicroflowNodeKind {
     DeleteAction: 'DeleteAction',
     MicroflowCallAction: 'MicroflowCallAction',
     LogMessageAction: 'LogMessageAction',
+    ShowMessageAction: 'ShowMessageAction',
     ExclusiveSplit: 'ExclusiveSplit',
     LoopedActivity: 'LoopedActivity',
   }
@@ -91,7 +104,6 @@ function mapWidgetKind(typeName: string): WidgetKind {
 
 async function extractEntities(model: any): Promise<MendixEntity[]> {
   const entities: MendixEntity[] = []
-  const SKIP_MODULES = new Set(['System', 'Administration', 'Marketplace'])
 
   try {
     const allModules = model.allModules()
@@ -164,16 +176,61 @@ async function extractEntities(model: any): Promise<MendixEntity[]> {
   return entities
 }
 
-async function extractMicroflows(model: any): Promise<MendixMicroflow[]> {
-  const microflows: MendixMicroflow[] = []
-  const SKIP_MODULES = new Set(['System', 'Administration'])
-  const MAX = 50
+async function extractEnumerations(model: any): Promise<MendixEnumeration[]> {
+  const enumerations: MendixEnumeration[] = []
 
   try {
-    const allMicroflows = model.allMicroflows()
-    const limited = allMicroflows.slice(0, MAX)
+    const allModules = model.allModules()
+    for (const mod of allModules) {
+      try {
+        const moduleName = mod.name || ''
+        if (SKIP_MODULES.has(moduleName)) continue
 
-    for (const mf of limited) {
+        const domainModel = mod.domainModel
+        if (!domainModel) continue
+        await domainModel.load()
+
+        for (const enumObj of domainModel.enumerations || []) {
+          try {
+            await enumObj.load()
+            const values: string[] = []
+            for (const val of enumObj.values || []) {
+              try {
+                await val.load()
+                if (val.name) values.push(val.name)
+              } catch (_) { /* skip */ }
+            }
+            enumerations.push({
+              name: enumObj.name,
+              moduleName,
+              qualifiedName: enumObj.qualifiedName || `${moduleName}.${enumObj.name}`,
+              values
+            })
+          } catch (_) { /* skip bad enumeration */ }
+        }
+      } catch (_) { /* skip bad module */ }
+    }
+  } catch (_) { /* if allModules fails */ }
+
+  return enumerations
+}
+
+async function extractMicroflows(model: any): Promise<MendixMicroflow[]> {
+  const microflows: MendixMicroflow[] = []
+  const MAX = 200
+
+  try {
+    const allMfs = model.allMicroflows()
+    // First MAX microflows, plus any from generator.config.json priority list not already in that slice
+    const limitedSet = new Set(allMfs.slice(0, MAX))
+    const priorityExtras = PRIORITY_MICROFLOWS.size > 0
+      ? allMfs.filter((mf: any) => {
+          try { return PRIORITY_MICROFLOWS.has(mf.name) && !limitedSet.has(mf) } catch (_) { return false }
+        })
+      : []
+    const toProcess = [...allMfs.slice(0, MAX), ...priorityExtras]
+
+    for (const mf of toProcess) {
       try {
         await mf.load()
         const moduleName = mf.qualifiedName?.split('.')?.[0] || ''
@@ -194,7 +251,10 @@ async function extractMicroflows(model: any): Promise<MendixMicroflow[]> {
           for (const obj of objects) {
             try {
               await obj.load()
-              const rawType = obj.constructor?.name || 'Unknown'
+              const wrapperType = obj.constructor?.name || 'Unknown'
+              // ActionActivity wraps the actual action — unwrap it
+              const actionObj = wrapperType === 'ActionActivity' ? (obj.action || obj) : obj
+              const rawType = actionObj.constructor?.name || wrapperType
               const kind = mapMicroflowNodeKind(rawType)
 
               const node: MicroflowNode = {
@@ -205,7 +265,7 @@ async function extractMicroflows(model: any): Promise<MendixMicroflow[]> {
               }
 
               if (['CreateObjectAction', 'RetrieveAction', 'ChangeObjectAction', 'DeleteAction'].includes(kind)) {
-                const entityRef = obj.entity || obj.entityRef
+                const entityRef = actionObj.entity || actionObj.entityRef
                 if (entityRef) {
                   try {
                     const entityName = entityRef.qualifiedName?.split('.')?.[1] || entityRef.name || ''
@@ -216,14 +276,38 @@ async function extractMicroflows(model: any): Promise<MendixMicroflow[]> {
 
               if (kind === 'MicroflowCallAction') {
                 try {
-                  const calledMf = obj.microflowCall?.microflow
+                  const calledMf = actionObj.microflowCall?.microflow
                   node.targetMicroflow = calledMf?.name || calledMf?.qualifiedName?.split('.')?.[1] || 'unknown'
                 } catch (_) { /* skip */ }
               }
 
               if (kind === 'LogMessageAction') {
                 try {
-                  node.message = obj.message?.parts?.[0]?.value || ''
+                  node.message = actionObj.message?.parts?.[0]?.value || ''
+                } catch (_) { /* skip */ }
+              }
+
+              if (kind === 'ShowMessageAction') {
+                try {
+                  const tmpl = actionObj.template
+                  if (tmpl) {
+                    await tmpl.load()
+                    const txt = tmpl.text
+                    if (txt) {
+                      await txt.load()
+                      const translations = txt.translations || []
+                      for (const trans of translations) {
+                        try {
+                          await trans.load()
+                          if (trans.text) {
+                            node.messageTemplate = trans.text
+                            break
+                          }
+                        } catch (_) { /* skip */ }
+                      }
+                    }
+                  }
+                  node.messageType = actionObj.type?.toString() || 'Information'
                 } catch (_) { /* skip */ }
               }
 
@@ -261,7 +345,7 @@ async function extractMicroflows(model: any): Promise<MendixMicroflow[]> {
           qualifiedName: mf.qualifiedName || `${moduleName}.${mf.name}`,
           parameters,
           nodes,
-          returnType: mf.returnType?.constructor?.name || undefined
+          returnType: undefined  // returnType deleted in Mendix 7.9.0; access throws
         })
       } catch (_) { /* skip bad microflow */ }
     }
@@ -569,7 +653,6 @@ async function extractWidgetTree(widget: any): Promise<MendixWidget> {
 
 async function extractPages(model: any, entities: MendixEntity[] = []): Promise<MendixPage[]> {
   const pages: MendixPage[] = []
-  const SKIP_MODULES = new Set(['System', 'Administration'])
 
   try {
     const allPages = model.allPages()
@@ -697,7 +780,8 @@ async function main(): Promise<void> {
     .filter(e => !e.isSystemEntity)
     .filter(e => { if (seenNames.has(e.name)) return false; seenNames.add(e.name); return true })
   const moduleCount = new Set(userEntities.map(e => e.moduleName)).size
-  console.log(`      ${moduleCount} modules, ${userEntities.length} entities`)
+  const enumerations = await extractEnumerations(model)
+  console.log(`      ${moduleCount} modules, ${userEntities.length} entities, ${enumerations.length} enumerations`)
 
   console.log('[3/5] Extracting microflows...')
   const microflows = await extractMicroflows(model)
@@ -713,9 +797,10 @@ async function main(): Promise<void> {
     projectId: PROJECT_ID,
     projectName: PROJECT_NAME,
     entities: userEntities,
+    enumerations,
     microflows,
     pages,
-    stats: { moduleCount, entityCount: userEntities.length, microflowCount: microflows.length, pageCount: pages.length }
+    stats: { moduleCount, entityCount: userEntities.length, enumerationCount: enumerations.length, microflowCount: microflows.length, pageCount: pages.length }
   }
 
   console.log('[5/5] Generating files...')
@@ -729,13 +814,13 @@ async function main(): Promise<void> {
     ...generateEntityRoutes(userEntities),
     generateAppEntry(userEntities, pages),
     generateDbSingleton(),
-    generatePrismaSchema(userEntities),
+    generatePrismaSchema(userEntities, enumerations),
     ...generateMicroflowServices(microflows),
     generatePackageJson(PROJECT_NAME),
     generateTsConfig(),
     generateEnvExample(),
     generateReadme(PROJECT_NAME, appModel.stats),
-    generateTypes(userEntities)
+    generateTypes(userEntities, enumerations)
   ]
 
   for (const file of files) {

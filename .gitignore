@@ -4,3 +4,5 @@ app/
 dist/
 *.js.map
 .mendix-wc-id
+.DS_Store
+Mendinova Care - Demo-main alias

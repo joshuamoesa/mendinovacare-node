@@ -1,4 +1,4 @@
-import { MendixEntity, MendixAttribute, GeneratedFile } from '../lib/types'
+import { MendixEntity, MendixAttribute, MendixEnumeration, GeneratedFile } from '../lib/types'
 import { pluralize } from '../lib/pageUtils'
 
 function sanitizeFieldName(name: string): string {
@@ -10,25 +10,34 @@ function sanitizeFieldName(name: string): string {
   return result
 }
 
-function attributeToField(attr: MendixAttribute): string {
+function attributeToField(attr: MendixAttribute, enumNames: Set<string>): string {
   const fieldName = sanitizeFieldName(attr.name)
 
   if (attr.isAutoNumber) {
     return `  ${fieldName}  Int  @id @default(autoincrement())`
   }
 
-  // SQLite does not support Decimal — map to Float
-  const prismaType = attr.prismaType === 'Decimal' ? 'Float' : attr.prismaType
-  const directives: string[] = []
+  let prismaType: string
+  if (attr.isEnumeration && attr.enumerationName && enumNames.has(attr.enumerationName)) {
+    // Use the proper Prisma enum type
+    prismaType = attr.enumerationName
+  } else if (attr.isEnumeration) {
+    // Enum not found in extracted enumerations — fall back to String
+    prismaType = `String // enum: ${attr.enumerationName || 'unknown'}`
+  } else {
+    // SQLite does not support Decimal — map to Float
+    prismaType = attr.prismaType === 'Decimal' ? 'Float' : attr.prismaType
+  }
 
+  const directives: string[] = []
   if (fieldName.toLowerCase() === 'id') {
     directives.push('@id')
   }
 
-  return `  ${fieldName}  ${prismaType}${attr.isEnumeration ? ' // enum: ' + (attr.enumerationName || 'unknown') : ''}  ${directives.join(' ')}`
+  return `  ${fieldName}  ${prismaType}  ${directives.join(' ')}`.trimEnd()
 }
 
-function entityToModel(entity: MendixEntity, relationLines: string[]): string {
+function entityToModel(entity: MendixEntity, relationLines: string[], enumNames: Set<string>): string {
   const lines: string[] = [`model ${entity.name} {`]
 
   // Add auto-incremented id if no auto-number attribute
@@ -40,7 +49,7 @@ function entityToModel(entity: MendixEntity, relationLines: string[]): string {
 
   // Add attributes
   for (const attr of entity.attributes) {
-    lines.push(attributeToField(attr))
+    lines.push(attributeToField(attr, enumNames))
   }
 
   // Append pre-computed relation fields (both forward and back-references)
@@ -50,8 +59,18 @@ function entityToModel(entity: MendixEntity, relationLines: string[]): string {
   return lines.join('\n')
 }
 
-export function generatePrismaSchema(entities: MendixEntity[]): GeneratedFile {
+function enumerationToBlock(enumeration: MendixEnumeration): string {
+  const lines: string[] = [`enum ${enumeration.name} {`]
+  for (const val of enumeration.values) {
+    lines.push(`  ${val}`)
+  }
+  lines.push(`}`)
+  return lines.join('\n')
+}
+
+export function generatePrismaSchema(entities: MendixEntity[], enumerations: MendixEnumeration[] = []): GeneratedFile {
   const userEntities = entities.filter(e => !e.isSystemEntity)
+  const enumNames = new Set(enumerations.map(e => e.name))
 
   // Pre-compute relation fields for every entity in a single pass.
   // For each M2M association owned by A → B, both sides are registered here:
@@ -107,7 +126,7 @@ datasource db {
 }
 `
 
-  const entityModels = userEntities.map(e => entityToModel(e, relationFields.get(e.name) ?? [])).join('\n\n')
+  const entityModels = userEntities.map(e => entityToModel(e, relationFields.get(e.name) ?? [], enumNames)).join('\n\n')
 
   // Prisma requires at least one model to generate a client.
   // Add a placeholder when the project has no user entities.
@@ -118,9 +137,25 @@ datasource db {
 
   const models = entityModels || placeholder
 
+  // Emit only enumerations that are actually referenced by at least one entity attribute
+  const referencedEnumNames = new Set<string>()
+  for (const entity of userEntities) {
+    for (const attr of entity.attributes) {
+      if (attr.isEnumeration && attr.enumerationName && enumNames.has(attr.enumerationName)) {
+        referencedEnumNames.add(attr.enumerationName)
+      }
+    }
+  }
+  const enumBlocks = enumerations
+    .filter(e => referencedEnumNames.has(e.name) && e.values.length > 0)
+    .map(enumerationToBlock)
+    .join('\n\n')
+
+  const sections = [models, enumBlocks].filter(Boolean).join('\n\n')
+
   return {
     path: 'prisma/schema.prisma',
-    content: header + '\n' + models + '\n',
+    content: header + '\n' + sections + '\n',
     category: 'data'
   }
 }

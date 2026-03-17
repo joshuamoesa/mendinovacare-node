@@ -4,6 +4,8 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green?style=flat-square)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
+> **INTERNAL USE ONLY.** POP (Proof of Portability) is a demo tool built for internal Mendix presentations. It is not a product, not for sale, and must not be used in sales cycles or presented to customers as a Mendix offering or service.
+
 Generate a runnable Node.js/Express/Prisma/EJS app from the Mendinova Care Mendix model — via a single CLI command.
 
 ## Table of Contents
@@ -11,6 +13,8 @@ Generate a runnable Node.js/Express/Prisma/EJS app from the Mendinova Care Mendi
 - [Background](#background)
 - [Install](#install)
 - [Usage](#usage)
+- [What gets extracted](#what-gets-extracted)
+- [Configuration](#configuration)
 - [Scripts](#scripts)
 - [Security](#security)
 - [Related Efforts](#related-efforts)
@@ -64,7 +68,7 @@ Runs a polished retro terminal UI demo — simulated by default, no credentials 
 npm run demo
 ```
 
-The demo opens with an **MXIT** banner in large 3D letters (phosphor green), followed by animated progress bars that fill left-to-right as each conversion stage runs, and a summary box with the final stats.
+The demo opens with a **POP** banner in large 3D letters (phosphor green), followed by animated progress bars that fill left-to-right as each conversion stage runs, and a summary box with the final stats.
 
 To run the real Mendix SDK conversion and automatically set up and launch the generated app:
 
@@ -110,6 +114,48 @@ npm run generate:full
 
 Equivalent to running `generate`, copying `.env`, installing dependencies, pushing the database schema, and starting the dev server — all in sequence.
 
+## What gets extracted
+
+The generator reads the live Mendix model and produces the following:
+
+| Model artifact | What is generated |
+|----------------|-------------------|
+| **Entities** | `prisma/schema.prisma` models with typed fields, FK columns, and auto-increment IDs |
+| **Enumerations** | Prisma `enum` blocks in the schema + TypeScript union types in `src/types.ts` |
+| **Microflows** | `src/services/*.ts` stubs with comments mapping each action (CreateObject, ChangeObject, ShowMessage, etc.) |
+| **Pages** | `views/*.ejs` templates + `src/routes/*.ts` Express routers (one pair per page) |
+
+Microflow extraction is capped at 200 to limit SDK round-trips. Items in `generator.config.js` `priority.microflows` are always included regardless of their position in the full list.
+
+Not yet extracted: nanoflows, snippets, published REST services, scheduled events.
+
+## Configuration
+
+`generator.config.js` in the project root controls extraction behaviour. Edit it before running `npm run generate`.
+
+```js
+module.exports = {
+  // Modules to skip entirely — 'System', 'Administration', and 'Marketplace'
+  // are Mendix built-ins with no app-specific logic worth generating.
+  skipModules: ['System', 'Administration', 'Marketplace'],
+
+  // Model items to extract as a priority, regardless of their position in
+  // the full list (extraction is capped to avoid excessive SDK calls).
+  priority: {
+    microflows: ['ACT_ContactFormEntry_Submit'],
+    pages: [],
+    entities: []
+  }
+}
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `skipModules` | `string[]` | Module names to exclude from all extraction passes |
+| `priority.microflows` | `string[]` | Microflow names to always extract, even if beyond the 200-item cap |
+| `priority.pages` | `string[]` | Page names to always extract *(reserved, not yet used)* |
+| `priority.entities` | `string[]` | Entity names to always extract *(reserved, not yet used)* |
+
 ## Scripts
 
 | Script | Description |
@@ -118,6 +164,17 @@ Equivalent to running `generate`, copying `.env`, installing dependencies, pushi
 | `npm run generate:full` | Generate + copy `.env` + `npm install` + `db:push` + `npm run dev` |
 | `npm run demo` | Polished presales demo (simulated by default) |
 | `npm run demo -- --real` | Full real SDK run with automatic app setup and launch |
+
+### Dev server
+
+The generated app's `npm run dev` uses **nodemon**, which watches `app/src/` for `.ts` file changes and restarts the server automatically. After `npm run generate` writes new files, the server restarts on its own.
+
+To manually kill and restart (run from `app/`):
+
+```bash
+kill $(lsof -ti :3001)   # stop whatever is on port 3001
+npm run dev              # start fresh
+```
 
 ## Security
 

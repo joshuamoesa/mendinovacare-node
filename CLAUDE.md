@@ -10,16 +10,17 @@ A code generator that reads the **Mendinova Care** Mendix app model via the Mend
 
 ```
 scripts/generate.ts      ← connects to Mendix SDK, orchestrates everything
+generator.config.js      ← extraction settings (skipModules, priority lists)
 generators/
   layoutGenerator.ts     ← views/layout.ejs  (navbar, CSS)
   pageGenerator.ts       ← views/*.ejs + src/routes/*.ts  (one pair per page)
   appGenerator.ts        ← src/app.ts + src/db.ts
-  prismaGenerator.ts     ← prisma/schema.prisma
+  prismaGenerator.ts     ← prisma/schema.prisma  (models + enum blocks)
   microflowGenerator.ts  ← src/services/*.ts
   packageJsonGenerator.ts
-  typesGenerator.ts
+  typesGenerator.ts      ← src/types.ts  (interfaces + union types for enumerations)
 lib/
-  types.ts               ← shared TypeScript types (MendixWidget, MendixPage, …)
+  types.ts               ← shared TypeScript types (MendixWidget, MendixPage, MendixEnumeration, …)
   pageUtils.ts           ← helpers (isNavPage, pluralize, …)
 app/                     ← generated output (committed for dev preview)
 ```
@@ -52,6 +53,14 @@ cp app/.env.example app/.env
 cd app && npm install && npm run db:push && npm run dev   # http://localhost:3001
 ```
 
+The generated app's `npm run dev` uses **nodemon** — it watches `app/src/` and restarts automatically when `npm run generate` writes new files. No manual server restart needed.
+
+To kill and restart manually (from `app/`):
+```bash
+kill $(lsof -ti :3001)
+npm run dev
+```
+
 After every `npm run generate`, re-apply the post-generation patches described below.
 
 ### Demo script (`demo/run.ts`)
@@ -73,7 +82,7 @@ Dependencies added for the demo: `chalk@4`, `ora@5`, `@inquirer/prompts`, `open@
 All layout uses a fixed width `W = 74` chars. Colour palette: phosphor green `#00FF41` for all UI chrome and text.
 
 **Banner** — `printBanner()`:
-- `cfonts` `3d` font renders **MXIT** in phosphor green as a single block.
+- `cfonts` `3d` font renders **POP** in phosphor green as a single block.
 - Below the banner: a dim grey dashed box (`┌┄┄┄┐ / ┆ / └┄┄┄┘`) with two centred lines:
   - `Exit the Mendix platform. Keep the logic.`
   - `Powered by Claude Code, Mendix Platform SDK and Node.js`
@@ -98,6 +107,32 @@ All layout uses a fixed width `W = 74` chars. Colour palette: phosphor green `#0
 Best of luck with your migration! Thanks for being part of the Mendix community.
 If you ever get the itch to come back, we'll have a fresh pot of coffee waiting for you.
 ```
+
+---
+
+## generator.config.js
+
+Controls extraction behaviour. Loaded at the top of `scripts/generate.ts` via `require()`. Falls back to `generator.config.json` if present, then to hardcoded defaults.
+
+```js
+module.exports = {
+  skipModules: ['System', 'Administration', 'Marketplace'],
+  priority: {
+    microflows: ['ACT_ContactFormEntry_Submit'],
+    pages: [],
+    entities: []
+  }
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `skipModules` | `['System', 'Administration', 'Marketplace']` | Module names excluded from all extraction passes |
+| `priority.microflows` | `[]` | Microflow names always extracted regardless of the 200-item cap |
+| `priority.pages` | `[]` | Reserved — not yet consumed by the generator |
+| `priority.entities` | `[]` | Reserved — not yet consumed by the generator |
+
+The file uses `.js` (not `.json`) specifically to allow `//` comments documenting not-yet-implemented extraction types (nanoflows, snippets, published REST services, scheduled events).
 
 ---
 
@@ -176,6 +211,47 @@ if (/\bh1\b/.test(cls)) return `<h1 class="${cls}">…</h1>`
 ```
 However, the design-property-to-CSS mapper in `generate.ts` currently only handles button styles, border shapes, and background display mode. Font/heading style design properties are **not yet mapped** — so most text widgets arrive with no `cssClass`.
 
+### `model.allMicroflows()` — registry warmup required
+`model.allMicroflows()` returns an empty array unless the SDK's internal `_unitsByType` registry has been populated first. The registry is populated by iterating modules and accessing their sub-objects (e.g. `mod.domainModel`). Since `extractEntities()` already does this loop, call it before `extractMicroflows()` and the registry will be ready.
+
+### `returnType` deleted in Mendix 7.9.0
+`Microflows$Microflow.returnType` was removed in Mendix 7.9.0. The property getter calls `assertReadable()` → `reportAvailabilityIssues()` → throws, even with the `?.` optional-chain operator (the throw happens inside the getter before any value is returned). Fix: replace any access to `mf.returnType` with a hardcoded `undefined`.
+
+### `ActionActivity` wrapper
+Every action node inside a microflow's `objectCollection.objects` is an `ActionActivity` container. `obj.constructor?.name` always returns `'ActionActivity'`, not the actual action type. The real action object is at `obj.action`. Unwrap before reading type or properties:
+```typescript
+const wrapperType = obj.constructor?.name || 'Unknown'
+const actionObj = wrapperType === 'ActionActivity' ? (obj.action || obj) : obj
+const rawType = actionObj.constructor?.name || wrapperType
+```
+
+### ShowMessageAction text path
+After unwrapping from `ActionActivity`, the popup text lives at:
+```
+actionObj.template  (ClientTemplate)
+  → .text           (texts.Text)
+    → .translations[i]
+      → .text       (string)
+```
+Each level requires `.load()`. The message type (`Information` / `Warning` / `Error`) is at `actionObj.type?.toString()`.
+
+### Enumerations
+Enumerations live on the domain model, not as top-level SDK objects. Extract them alongside entities:
+```typescript
+await domainModel.load()
+for (const enumObj of domainModel.enumerations || []) {
+  await enumObj.load()
+  for (const val of enumObj.values || []) {
+    await val.load()
+    // val.name is the enum value string
+  }
+}
+```
+`model.allEnumerations()` also works once the registry is warmed up. The short name (`enumObj.name`) matches the `enumerationName` stored on `MendixAttribute`. `prismaGenerator.ts` emits proper `enum` blocks (only for enumerations referenced by at least one entity attribute); `typesGenerator.ts` emits TypeScript union types.
+
+### Prisma enum support on SQLite
+Prisma maps enum types to `TEXT` columns on SQLite — native enums are not required. Prisma `enum` blocks in `schema.prisma` work with SQLite without any special configuration.
+
 ---
 
 ## Post-generation manual patches
@@ -184,9 +260,9 @@ After every `npm run generate` these should be verified:
 
 | File | What to check |
 |------|---------------|
-| `app/src/routes/Home_Anonymous.ts` | Route generates `const userroleList: unknown[] = []` (no Prisma call). If it still shows `prisma.userrole.findMany()`, the generator fix wasn't applied. |
+| `app/src/routes/Home_Anonymous.ts` | Must contain `GET /home_anonymous` and `POST /contact` only — no `prisma.userrole` calls. The `generateHomeAnonymousRoute()` special-case in `pageGenerator.ts` handles this automatically. |
 | `app/src/app.ts` | Must include `app.use(express.static(path.join(__dirname, '../public')))` before routes. Add it if missing. |
-| `app/views/Home_Anonymous.ejs` | Apply the full like-for-like patch below. |
+| `app/views/Home_Anonymous.ejs` | The generator's `generateHomeAnonymous()` produces the full polished template including the contact form, confirmation modal, and fetch script. Verify the committed version matches if the generator was changed. |
 
 ### Image assets
 
@@ -232,7 +308,7 @@ Replace the entire generated file with the version committed in the repo. Key di
 4. **Feature cards** — `<!-- CustomWidget -->` replaced with `<img>` referencing `/img/...`, titles → `<h3>`, wrapper → `<div class="mx-card">`
 5. **Mission section** — `<!-- CustomWidget -->` for the side image replaced with `<img src="/img/...doctorhelpingolderlylady.png">`, checkmarks → `<img src="/img/...V_V.svg">` in `.mx-checklist`
 6. **Contact info** — Phone/Email `<!-- CustomWidget -->` → `<img>` icons with `.mx-contact-item` layout, phone number / email address use `.mx-contact-value` (bold)
-7. **Contact form** — replaced `<p>Contact us</p><button>Submit</button>` with full `<form>` (name, email, message, full-width submit), wrapped in `.mx-card.mx-contact-form`, "Contact us" → `<h3 style="color: #D14200">`
+7. **Contact form** — full `<form id="contactForm">` with `name="Name"`, `name="Email"`, `name="Message"` inputs, wrapped in `.mx-card.mx-contact-form`. On submit: JS intercepts, POSTs JSON to `POST /contact`, resets form, shows confirmation modal. Modal text matches the Mendix `ShowMessageAction`: *"Thank you for contacting us! We will get back to you as soon as possible."*
 8. **Footer** — logo `<!-- CustomWidget -->` → `<img src="/img/...mendinovaWhite.svg">`, footer div gets `.mx-footer` class for dark background
 
 ### CSS additions to `app/views/layout.ejs`
@@ -304,3 +380,7 @@ Background image served from: `/img/design_module$Image_collection$headerImage.p
 2. **Conditional visibility ignored** — Mendix widgets can have visibility conditions (show only when logged in, etc.). These are not parsed; all widgets render unconditionally.
 3. **CustomWidget slots** — Pluggable widgets with complex slot structures (carousels, charts, icon widgets) render as `<!-- CustomWidget -->` comments.
 4. **Section headings below hero** — "Why choose our portal?", "24/7 Access" etc. render as unstyled `<p>` tags because their Atlas design property class is not captured. Post-generation patch is required (see above).
+5. **Nanoflows not extracted** — Mendix nanoflows (client-side microflows) are not yet extracted. Add to `generator.config.js` `priority` once implemented.
+6. **Snippets not extracted** — Reusable page snippets render as their contained widgets without the snippet boundary being preserved.
+7. **Published REST services not extracted** — Endpoint definitions, operations, and parameter mappings are not yet generated.
+8. **Scheduled events not extracted** — Microflows invoked on a schedule are not yet detected or generated.
