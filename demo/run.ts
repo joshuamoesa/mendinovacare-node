@@ -5,6 +5,7 @@ import { select, confirm } from '@inquirer/prompts';
 import open from 'open';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
+import * as https from 'https';
 import * as path from 'path';
 
 const args = process.argv.slice(2);
@@ -442,31 +443,38 @@ async function runReal(): Promise<void> {
   await postStage('Installing app dependencies...', () => spawnAsync('npm', ['install'], { cwd: appDir }));
   await postStage('Setting up database...', () => spawnAsync('npm', ['run', 'db:push'], { cwd: appDir }));
 
-  await postStage('Copying image assets...', async () => {
-    const mendixImgDir = path.join(
-      process.env.HOME || process.env.USERPROFILE || '',
-      'workdir', 'Mendix', 'Mendinova Care - Demo-main', 'deployment', 'web', 'img'
-    );
+  await postStage('Downloading image assets...', async () => {
+    const BASE = 'https://mendinovacare.apps.eu-1c.mendixcloud.com/img';
     const appImgDir = path.join(appDir, 'public', 'img');
     fs.mkdirSync(appImgDir, { recursive: true });
-    const images = [
-      'design_module$Image_collection$_24_7.svg',
-      'design_module$Image_collection$fingerprint.svg',
-      'design_module$Image_collection$directContact.svg',
-      'design_module$Image_collection$inlogclient.svg',
-      'design_module$Image_collection$medewerken.svg',
-      'design_module$Image_collection$doctorhelpingolderlylady.png',
-      'design_module$Image_collection$telefoon.svg',
-      'design_module$Image_collection$email.svg',
-      'design_module$Image_collection$mendinovaWhite.svg',
-      'design_module$Image_collection$V_V.svg',
+
+    // Map: cloud filename (under $Images$) -> local filename (under $Image_collection$)
+    const images: Array<[string, string]> = [
+      ['design_module$Images$_24_7.svg',                  'design_module$Image_collection$_24_7.svg'],
+      ['design_module$Images$fingerprint.svg',             'design_module$Image_collection$fingerprint.svg'],
+      ['design_module$Images$directContact.svg',           'design_module$Image_collection$directContact.svg'],
+      ['design_module$Images$inlogclient.svg',             'design_module$Image_collection$inlogclient.svg'],
+      ['design_module$Images$medewerken.svg',              'design_module$Image_collection$medewerken.svg'],
+      ['design_module$Images$doctorhelpingolderlylady.png','design_module$Image_collection$doctorhelpingolderlylady.png'],
+      ['design_module$Images$telefoonDetailpage.svg',      'design_module$Image_collection$telefoon.svg'],
+      ['design_module$Images$emailDetailPage.svg',         'design_module$Image_collection$email.svg'],
+      ['design_module$Images$mendinovaWhite.svg',          'design_module$Image_collection$mendinovaWhite.svg'],
+      ['design_module$Images$V_V.svg',                     'design_module$Image_collection$V_V.svg'],
+      ['design_module$Images$headerImage.png',             'design_module$Image_collection$headerImage.png'],
     ];
-    for (const img of images) {
-      const src = path.join(mendixImgDir, img);
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, path.join(appImgDir, img));
-      }
-    }
+
+    const downloadFile = (url: string, dest: string): Promise<void> =>
+      new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        https.get(url, (res) => {
+          res.pipe(file);
+          file.on('finish', () => { file.close(); resolve(); });
+        }).on('error', (err) => { fs.unlink(dest, () => {}); reject(err); });
+      });
+
+    await Promise.all(images.map(([src, dest]) =>
+      downloadFile(`${BASE}/${src}`, path.join(appImgDir, dest))
+    ));
   });
 
   const r5 = ora({ text: G('Starting app...'), color: 'green' }).start();

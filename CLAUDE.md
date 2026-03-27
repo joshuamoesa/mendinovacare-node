@@ -40,7 +40,7 @@ generators/
 lib/
   types.ts               ← shared TypeScript types (MendixWidget, MendixPage, MendixEnumeration, …)
   pageUtils.ts           ← helpers (isNavPage, pluralize, …)
-app/                     ← generated output (committed for dev preview)
+app/                     ← generated output (gitignored; deleted and recreated on each generation)
 ```
 
 ### Scripts
@@ -87,7 +87,7 @@ Entry point: `demo/run.ts`. Runs with `ts-node --esm` using `demo/tsconfig.json`
 
 **Simulate mode** (default): hardcoded stats, realistic timing (~60s total), no credentials needed. Safe for live demos.
 
-**Real mode** (`--real`): spawns `scripts/generate.ts` silently in the background (`stdio: ['ignore', 'pipe', 'pipe']`) so raw SDK output never leaks into the TUI. Shows the same auth box → project/output selection → config box → 5-stage progress bar flow as simulate mode. After the SDK finishes, automatically copies `.env`, runs `npm install`, `db:push`, copies image assets, and starts the dev server detached on port 3001. Ends with a browser open prompt and a two-line farewell message.
+**Real mode** (`--real`): spawns `scripts/generate.ts` silently in the background (`stdio: ['ignore', 'pipe', 'pipe']`) so raw SDK output never leaks into the TUI. Shows the same auth box → project/output selection → config box → 5-stage progress bar flow as simulate mode. After the SDK finishes, automatically copies `.env`, runs `npm install`, `db:push`, downloads image assets from the Mendix cloud deployment, and starts the dev server detached on port 3001. Ends with a browser open prompt and a two-line farewell message.
 
 **Interactive prompts** — two `@inquirer/prompts` `select` calls run before the Configuration box in both simulate and real mode:
 1. **Project selection** — three choices in order: `HR Self Service Portal`, `Customer Ticket Manager`, `Mendinova Care - Demo`. The selected name is shown in the Configuration box. In real mode the SDK always converts the configured project ID regardless of selection.
@@ -106,8 +106,9 @@ All layout uses a fixed width `W = 74` chars. Colour palette: phosphor green `#0
 **Banner** — `printBanner()`:
 - `cfonts` `3d` font renders **POP** in phosphor green as a single block.
 - Below the banner: a dim grey dashed box (`┌┄┄┄┐ / ┆ / └┄┄┄┘`) with two centred lines:
-  - `Exit the Mendix platform. Keep the logic.`
+  - `Proof of Portability. Your logic. Any platform.`
   - `Powered by Claude Code, Mendix Platform SDK and Node.js`
+- Below the dashed box: a yellow cornered box titled **INTERNAL USE ONLY** with three lines warning that POP is a proof-of-concept for internal demos only, not a product, and must not be presented to customers as a Mendix offering.
 
 **Section boxes** — three variants:
 | Function | Corners | Used for |
@@ -311,22 +312,49 @@ After every `npm run generate` these should be verified:
 
 ### Image assets
 
-Copy these files from the Mendix deployment into `app/public/img/` after each generation:
+Copy these files into `app/public/img/` after each generation.
+
+**Option A — download from the Mendix cloud deployment (no local Studio Pro needed):**
+
+The live app serves images under `$Images$` collection; two filenames also differ from the local deployment. Save them under the `$Image_collection$` names that `Home_Anonymous.ejs` references:
+
+```bash
+BASE="https://mendinovacare.apps.eu-1c.mendixcloud.com/img"
+DEST="app/public/img"
+mkdir -p "$DEST"
+
+curl -s -o "$DEST/design_module\$Image_collection\$_24_7.svg"               "$BASE/design_module\$Images\$_24_7.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$fingerprint.svg"          "$BASE/design_module\$Images\$fingerprint.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$directContact.svg"        "$BASE/design_module\$Images\$directContact.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$inlogclient.svg"          "$BASE/design_module\$Images\$inlogclient.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$medewerken.svg"           "$BASE/design_module\$Images\$medewerken.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$doctorhelpingolderlylady.png" "$BASE/design_module\$Images\$doctorhelpingolderlylady.png"
+curl -s -o "$DEST/design_module\$Image_collection\$telefoon.svg"             "$BASE/design_module\$Images\$telefoonDetailpage.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$email.svg"                "$BASE/design_module\$Images\$emailDetailPage.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$mendinovaWhite.svg"       "$BASE/design_module\$Images\$mendinovaWhite.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$V_V.svg"                  "$BASE/design_module\$Images\$V_V.svg"
+curl -s -o "$DEST/design_module\$Image_collection\$headerImage.png"          "$BASE/design_module\$Images\$headerImage.png"
+```
+
+**Option B — copy from local Mendix Studio Pro deployment:**
+
+The local deployment uses `$Images$` collection name and slightly different filenames for the phone/email icons:
 
 ```bash
 MENDIX_IMG="/path/to/Mendix/Mendinova Care - Demo-main/deployment/web/img"
 APP_IMG="app/public/img"
 mkdir -p "$APP_IMG"
-cp "$MENDIX_IMG/design_module\$Image_collection\$_24_7.svg"               "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$fingerprint.svg"          "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$directContact.svg"        "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$inlogclient.svg"          "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$medewerken.svg"           "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$doctorhelpingolderlylady.png" "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$telefoon.svg"             "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$email.svg"                "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$mendinovaWhite.svg"       "$APP_IMG/"
-cp "$MENDIX_IMG/design_module\$Image_collection\$V_V.svg"                  "$APP_IMG/"
+cp "$MENDIX_IMG/design_module\$Images\$_24_7.svg"               "$APP_IMG/design_module\$Image_collection\$_24_7.svg"
+cp "$MENDIX_IMG/design_module\$Images\$fingerprint.svg"          "$APP_IMG/design_module\$Image_collection\$fingerprint.svg"
+cp "$MENDIX_IMG/design_module\$Images\$directContact.svg"        "$APP_IMG/design_module\$Image_collection\$directContact.svg"
+cp "$MENDIX_IMG/design_module\$Images\$inlogclient.svg"          "$APP_IMG/design_module\$Image_collection\$inlogclient.svg"
+cp "$MENDIX_IMG/design_module\$Images\$medewerken.svg"           "$APP_IMG/design_module\$Image_collection\$medewerken.svg"
+cp "$MENDIX_IMG/design_module\$Images\$doctorhelpingolderlylady.png" "$APP_IMG/design_module\$Image_collection\$doctorhelpingolderlylady.png"
+cp "$MENDIX_IMG/design_module\$Images\$telefoonDetailpage.svg"   "$APP_IMG/design_module\$Image_collection\$telefoon.svg"
+cp "$MENDIX_IMG/design_module\$Images\$emailDetailPage.svg"      "$APP_IMG/design_module\$Image_collection\$email.svg"
+cp "$MENDIX_IMG/design_module\$Images\$mendinovaWhite.svg"       "$APP_IMG/design_module\$Image_collection\$mendinovaWhite.svg"
+cp "$MENDIX_IMG/design_module\$Images\$V_V.svg"                  "$APP_IMG/design_module\$Image_collection\$V_V.svg"
+cp "$MENDIX_IMG/design_module\$Images\$headerImage.png"          "$APP_IMG/design_module\$Image_collection\$headerImage.png"
 ```
 
 Image mapping:
@@ -415,7 +443,7 @@ Container: `max-width: 1200px; margin: 0 auto; padding: 0 2rem 24px` — hero us
 
 Mendix cloud app: `https://mendinovacare.apps.eu-1c.mendixcloud.com`
 
-Background image served from: `/img/design_module$Image_collection$headerImage.png` (200 OK, no auth required).
+Background image served from: `/img/design_module$Images$headerImage.png` (200 OK, no auth required). Note: the live app uses `$Images$` collection name, not `$Image_collection$`.
 
 ---
 
